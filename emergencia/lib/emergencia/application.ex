@@ -14,6 +14,7 @@ defmodule Emergencia.Application do
       {Finch, name: Emergencia.Finch},
       Emergencia.Usuarios,
       Emergencia.Zonas,
+      Emergencia.Recursos,
       # Start a worker by calling: Emergencia.Worker.start_link(arg)
       # {Emergencia.Worker, arg},
       # Start to serve requests, typically the last entry

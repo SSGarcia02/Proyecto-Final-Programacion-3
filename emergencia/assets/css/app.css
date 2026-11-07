@@ -1,26 +1,21 @@
-/* See the Tailwind configuration guide for advanced usage
-   https://tailwindcss.com/docs/configuration */
+/* ==========================================================================
+   CONFIGURACIÓN BASE DE TAILWIND Y DAISYUI (Generado por Phoenix)
+   ========================================================================== */
 
 @import "tailwindcss" source(none);
 @import "phoenix-colocated/emergencia/colocated.css";
 @source "../css";
 @source "../js";
 @source "../../lib/emergencia_web";
-/* Required for Tailwind to automatically pick up changes in colocated CSS files in dev */
 @source "../../_build/dev/phoenix-colocated/emergencia/*/";
 
-/* A Tailwind plugin that makes "hero-#{ICON}" classes available.
-   The heroicons installation itself is managed by your mix.exs */
 @plugin "../vendor/heroicons";
 
-/* daisyUI Tailwind Plugin. */
 @plugin "daisyui/packages/bundle/daisyui" {
   themes: false;
 }
 
-/* daisyUI theme plugin.
-  We ship with two themes, a light one inspired on Phoenix colors and a dark one inspired
-  on Elixir colors. Build your own at: https://daisyui.com/theme-generator/ */
+/* Tema Oscuro (Desactivado por defecto para este proyecto) */
 @plugin "daisyui/packages/bundle/daisyui-theme" {
   name: "dark";
   default: false;
@@ -56,6 +51,7 @@
   --noise: 0;
 }
 
+/* Tema Claro (Activado por defecto) */
 @plugin "daisyui/packages/bundle/daisyui-theme" {
   name: "light";
   default: true;
@@ -91,15 +87,266 @@
   --noise: 0;
 }
 
-/* Add variants based on LiveView classes */
 @custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
 @custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
 @custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
 
-/* Use the data attribute for dark mode  */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
-/* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
-/* This file is for your main application CSS */
+
+/* ==========================================================================
+   ESTILOS PERSONALIZADOS DEL PROYECTO
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Contenedores Principales (Zonas, Recursos, Dashboard)
+   -------------------------------------------------------------------------- */
+.zonas-container, .recursos-container, .dashboard-container {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background-color: #ffffff !important;
+  color: #333333 !important;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  font-family: sans-serif;
+}
+
+.zonas-container h1, .recursos-container h1, .dashboard-container h1,
+.zonas-container h2, .recursos-container h2, .dashboard-container h2 {
+  color: #333333 !important;
+  margin-bottom: 1rem;
+  font-weight: bold;
+}
+
+/* --------------------------------------------------------------------------
+   2. Formularios y Secciones
+   -------------------------------------------------------------------------- */
+.form-section, .list-section {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  border: 1px solid #e9ecef;
+}
+
+.form-section label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: #333333 !important;
+}
+
+.form-section input, .form-section select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #ffffff !important;
+  color: #333333 !important;
+}
+
+/* Botones principales */
+.form-section button, button[type="submit"] {
+  background: #007bff !important;
+  color: white !important;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.form-section button:hover {
+  background: #0056b3 !important;
+}
+
+/* --------------------------------------------------------------------------
+   3. Tablas de Datos
+   -------------------------------------------------------------------------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  background-color: #ffffff !important;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 0.75rem;
+  text-align: left;
+  color: #333333 !important;
+}
+
+th {
+  background-color: #007bff !important;
+  color: white !important;
+}
+
+tr:nth-child(even) {
+  background-color: #f2f2f2 !important;
+}
+
+/* --------------------------------------------------------------------------
+   4. Alertas y Mensajes de Error
+   -------------------------------------------------------------------------- */
+.error {
+  color: #721c24 !important;
+  background-color: #f8d7da !important;
+  border: 1px solid #f5c6cb;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  font-weight: bold;
+}
+
+/* --------------------------------------------------------------------------
+   5. Elementos de Formulario Especiales (Select, Radio, Botones de Acción)
+   -------------------------------------------------------------------------- */
+select, select option {
+  background-color: #ffffff !important;
+  color: #333333 !important;
+}
+
+select option:hover, select option:focus, select option:active {
+  background-color: #007bff !important;
+  color: #ffffff !important;
+}
+
+select:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+input[type="radio"] {
+  width: auto !important;
+  margin: 0 !important;
+  cursor: pointer;
+}
+
+/* Botones pequeños de la tabla (Editar/Eliminar) */
+.btn-accion {
+  padding: 0.25rem 0.5rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: white !important;
+  text-decoration: none;
+  display: inline-block;
+  margin-right: 0.25rem;
+}
+
+.btn-editar { background-color: #f0ad4e !important; }
+.btn-editar:hover { background-color: #ec971f !important; }
+
+.btn-eliminar { background-color: #d9534f !important; }
+.btn-eliminar:hover { background-color: #c9302c !important; }
+
+/* --------------------------------------------------------------------------
+   6. Pantalla de Login
+   -------------------------------------------------------------------------- */
+.login-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f4f7f6;
+  font-family: sans-serif;
+}
+
+.login-card {
+  background: white;
+  padding: 3rem;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+  width: 100%;
+  max-width: 400px;
+  border-top: 5px solid #007bff;
+}
+
+.login-card h1 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+  text-align: center;
+  font-size: 2rem;
+}
+
+.login-card h2 {
+  margin: 0 0 2rem 0;
+  color: #666;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: normal;
+}
+
+.login-card .form-group {
+  margin-bottom: 1.5rem;
+}
+
+.login-card label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #555;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.login-card input {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+  color: #333333 !important;
+}
+
+.login-card input::placeholder {
+  color: #999999 !important;
+  opacity: 1;
+}
+
+.login-card input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+}
+
+.login-card button {
+  width: 100%;
+  padding: 1rem;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-top: 1rem;
+}
+
+.login-card button:hover {
+  background-color: #0056b3;
+}
+
+.login-card .hint {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #888;
+  margin-top: 1.5rem;
+}
+
+.login-card .error {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+}

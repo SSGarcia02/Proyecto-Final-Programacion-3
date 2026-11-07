@@ -1,0 +1,3 @@
+codigo|nombre|categoria|unidad|ubicacion|cantidad|historial_json
+R001|Agua|Bebida|Litros|Centro 1|34|[{"tipo":"entrada","cantidad":5,"fecha":"2026-11-07 23:49:53.916000Z"},{"cantidad":20,"fecha":"2026-11-07 22:42:57.899000Z","tipo":"salida"},{"cantidad":4,"fecha":"2026-11-07 22:42:50.178000Z","tipo":"salida"}]
+R002|Papel Higienico|Aseo|Litros|Centro 1|40|[]

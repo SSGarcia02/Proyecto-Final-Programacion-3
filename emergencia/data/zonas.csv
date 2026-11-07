@@ -1,3 +1,5 @@
 codigo|nombre|nivel|sectores_json
-Z001|Zona 1|critico|[{"nombre":"Centro","puntos":[{"nombre":"Escuela","personas_afectadas":50}]}]
-Z002|Zona Norte|alto|[]
+Z001|Zona Norte|bajo|[{"nombre":"Avedules","puntos":[{"nombre":"Edificio 1","personas_afectadas":12}]}]
+Z002|Zona Este|critico|[{"nombre":"Centro","puntos":[{"nombre":"Escuela","personas_afectadas":45}]}]
+Z003|Zona Oeste|critico|[{"nombre":"Acacias","puntos":[{"nombre":"Hospital","personas_afectadas":41}]}]
+Z005|Zona Sur|medio|[{"nombre":"Barrio","puntos":[{"nombre":"Parque","personas_afectadas":30}]}]

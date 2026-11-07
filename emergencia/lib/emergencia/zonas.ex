@@ -34,6 +34,13 @@ defmodule Emergencia.Zonas do
     GenServer.call(__MODULE__, :listar)
   end
 
+  @doc """
+  Borra una zona registrada.
+  """
+  def eliminar(codigo) do
+    GenServer.call(__MODULE__, {:eliminar, codigo})
+  end
+
   # ---------- Callbacks ----------
 
   @impl true
@@ -69,5 +76,16 @@ defmodule Emergencia.Zonas do
 
   def handle_call(:listar, _from, zonas) do
     {:reply, Map.values(zonas), zonas}
+  end
+
+  @impl true
+  def handle_call({:eliminar, codigo}, _from, zonas) do
+    if Map.has_key?(zonas, codigo) do
+      nuevas_zonas = Map.delete(zonas, codigo)
+      Emergencia.Persistencia.guardar_zonas(nuevas_zonas)
+      {:reply, :ok, nuevas_zonas}
+    else
+      {:reply, {:error, :no_encontrada}, zonas}
+    end
   end
 end

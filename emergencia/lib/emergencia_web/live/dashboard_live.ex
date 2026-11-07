@@ -40,7 +40,8 @@ defmodule EmergenciaWeb.DashboardLive do
           <h3>Módulos disponibles:</h3>
           <ul>
             <li><a href="/zonas">Gestión de Zonas</a></li>
-            <!-- Aquí agregaremos más módulos luego -->
+            <li><a href="/recursos">Inventario de Recursos</a></li>
+            <!-- <-- NUEVO -->
           </ul>
         </div>
       </main>

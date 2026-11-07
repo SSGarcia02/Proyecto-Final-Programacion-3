@@ -38,34 +38,36 @@ defmodule EmergenciaWeb.LoginLive do
     end
   end
 
-  @impl true
+    @impl true
   def render(assigns) do
     ~H"""
-    <div class="login-container">
-      <h1>Emergencia</h1>
+    <div class="login-page">
+      <div class="login-card">
+        <h1>Emergencia</h1>
+        <h2>Iniciar Sesión</h2>
 
-      <h2>Conectar</h2>
+        <div :if={@error} class="error">
+          <%= @error %>
+        </div>
 
-      <div :if={@error} class="error">
-        {@error}
+        <form phx-submit="conectar">
+          <div class="form-group">
+            <label for="username">Usuario</label>
+            <input type="text" name="username" id="username" value={@username} placeholder="Ingresa tu usuario" />
+          </div>
+
+          <div class="form-group">
+            <label for="password">Contraseña</label>
+            <input type="password" name="password" id="password" placeholder="••••••••" />
+          </div>
+
+          <button type="submit">Conectar</button>
+        </form>
+
+        <p class="hint">
+          Si el usuario no existe, se registra automáticamente.
+        </p>
       </div>
-
-      <form phx-submit="conectar">
-        <div>
-          <label for="username">Usuario</label>
-          <input type="text" name="username" id="username" value={@username} />
-        </div>
-
-        <div>
-          <label for="password">Contraseña</label>
-          <input type="password" name="password" id="password" />
-        </div>
-        <button type="submit">Conectar</button>
-      </form>
-
-      <p class="hint">
-        Si el usuario no existe, se registra automáticamente.
-      </p>
     </div>
     """
   end

@@ -309,4 +309,87 @@ defmodule Emergencia.Persistencia do
     filas = Enum.map(zonas, fn {_codigo, zona} -> zona_a_fila(zona) end)
     escribir_filas("zonas.csv", @encabezado_zonas, filas, "|")
   end
+
+  # ---------- Conversión de Recurso <-> fila CSV ----------
+
+  alias Emergencia.Recursos.Recurso
+
+  @encabezado_recursos [
+    "codigo",
+    "nombre",
+    "categoria",
+    "unidad",
+    "ubicacion",
+    "cantidad",
+    "historial_json"
+  ]
+
+  @doc """
+  Devuelve el encabezado del CSV de recursos.
+  """
+  def encabezado_recursos, do: @encabezado_recursos
+
+  @doc """
+  Convierte un struct Recurso en una fila CSV.
+  """
+  def recurso_a_fila(%Recurso{} = r) do
+    [
+      r.codigo,
+      r.nombre,
+      r.categoria,
+      r.unidad,
+      r.ubicacion,
+      to_string(r.cantidad),
+      Jason.encode!(r.historial)
+    ]
+  end
+
+  @doc """
+  Convierte una fila CSV en un struct Recurso.
+  """
+  def fila_a_recurso([codigo, nombre, categoria, unidad, ubicacion, cantidad_str, historial_json]) do
+    with {cantidad, ""} <- Integer.parse(cantidad_str),
+         {:ok, historial} <- Jason.decode(historial_json) do
+      {:ok,
+       %Recurso{
+         codigo: codigo,
+         nombre: nombre,
+         categoria: categoria,
+         unidad: unidad,
+         ubicacion: ubicacion,
+         cantidad: cantidad,
+         historial: historial
+       }}
+    else
+      _ -> {:error, :fila_invalida}
+    end
+  end
+
+  def fila_a_recurso(_), do: {:error, :fila_invalida}
+
+  @doc """
+  Lee todos los recursos desde data/recursos.csv.
+  Usa el separador "|" para evitar conflictos con el JSON.
+  """
+  def leer_recursos do
+    with {:ok, filas} <- leer_filas("recursos.csv", "|") do
+      recursos =
+        filas
+        |> Enum.map(&fila_a_recurso/1)
+        |> Enum.reduce(%{}, fn
+          {:ok, recurso}, acc -> Map.put(acc, recurso.codigo, recurso)
+          {:error, _}, acc -> acc
+        end)
+
+      {:ok, recursos}
+    end
+  end
+
+  @doc """
+  Guarda todos los recursos en data/recursos.csv.
+  """
+  def guardar_recursos(recursos) when is_map(recursos) do
+    filas = Enum.map(recursos, fn {_codigo, r} -> recurso_a_fila(r) end)
+    escribir_filas("recursos.csv", @encabezado_recursos, filas, "|")
+  end
 end
