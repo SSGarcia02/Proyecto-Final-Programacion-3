@@ -40,7 +40,7 @@ defmodule Emergencia.Persistencia do
   Cada fila es una lista de strings.
   Si el archivo no existe, devuelve `{:ok, []}` (no es error).
   """
-  def leer_filas(nombre_archivo) do
+  def leer_filas(nombre_archivo, separador \\ ",") do
     ruta_archivo = ruta(nombre_archivo)
 
     case File.read(ruta_archivo) do
@@ -48,10 +48,9 @@ defmodule Emergencia.Persistencia do
         filas =
           contenido
           |> String.split("\n", trim: true)
-          # descarta encabezado
           |> Enum.drop(1)
-          # cada línea -> lista de strings
-          |> Enum.map(&String.split(&1, ","))
+          # <-- Usa el separador
+          |> Enum.map(&String.split(&1, separador))
 
         {:ok, filas}
 
@@ -74,10 +73,11 @@ defmodule Emergencia.Persistencia do
 
   Devuelve `:ok` o `{:error, motivo}`.
   """
-  def escribir_filas(nombre_archivo, encabezado, filas) do
+  def escribir_filas(nombre_archivo, encabezado, filas, separador \\ ",") do
     contenido =
       [encabezado | filas]
-      |> Enum.map(&Enum.join(&1, ","))
+      # <-- Usa el separador
+      |> Enum.map(&Enum.join(&1, separador))
       |> Enum.join("\n")
       |> Kernel.<>("\n")
 
@@ -219,5 +219,94 @@ defmodule Emergencia.Persistencia do
           {:error, razon} -> {:error, razon}
         end
     end
+  end
+
+  # ---------- Conversión de Zona <-> fila CSV ----------
+
+  alias Emergencia.Zonas.{Zona, Sector, Punto}
+
+  @encabezado_zonas ["codigo", "nombre", "nivel", "sectores_json"]
+
+  @doc """
+  Devuelve el encabezado del CSV de zonas.
+  """
+  def encabezado_zonas, do: @encabezado_zonas
+
+  @doc """
+  Convierte un struct Zona en una lista de strings (fila CSV).
+  Como los sectores son estructuras anidadas, los guardamos como texto JSON.
+  """
+  def zona_a_fila(%Zona{} = z) do
+    [
+      z.codigo,
+      z.nombre,
+      Atom.to_string(z.nivel),
+      # Convierte la lista de sectores a un string JSON
+      Jason.encode!(z.sectores)
+    ]
+  end
+
+  @doc """
+  Convierte una fila CSV en un struct Zona.
+  """
+  def fila_a_zona([codigo, nombre, nivel_str, sectores_json]) do
+    with {:ok, nivel} <- Zona.parsear_nivel(nivel_str),
+         {:ok, sectores_mapas} <- Jason.decode(sectores_json) do
+      # Reconstruimos los structs anidados desde los mapas JSON
+      sectores =
+        Enum.map(sectores_mapas, fn s_map ->
+          puntos =
+            Enum.map(s_map["puntos"], fn p_map ->
+              %Punto{
+                nombre: p_map["nombre"],
+                personas_afectadas: p_map["personas_afectadas"]
+              }
+            end)
+
+          %Sector{nombre: s_map["nombre"], puntos: puntos}
+        end)
+
+      {:ok,
+       %Zona{
+         codigo: codigo,
+         nombre: nombre,
+         nivel: nivel,
+         sectores: sectores
+       }}
+    end
+  end
+
+  def fila_a_zona(_), do: {:error, :fila_invalida}
+
+  # ---------- API de alto nivel para zonas ----------
+
+  @doc """
+  Lee todas las zonas desde data/zonas.csv.
+  """
+  def leer_zonas do
+    with {:ok, filas} <- leer_filas("zonas.csv", "|") do
+      zonas =
+        filas
+        |> Enum.map(&fila_a_zona/1)
+        |> Enum.reduce(%{}, fn
+          {:ok, zona}, acc ->
+            # Calculamos las personas afectadas al vuelo usando la recursividad
+            zona_completa = %{zona | personas_afectadas: Zona.calcular_total_personas(zona)}
+            Map.put(acc, zona_completa.codigo, zona_completa)
+
+          {:error, _}, acc ->
+            acc
+        end)
+
+      {:ok, zonas}
+    end
+  end
+
+  @doc """
+  Guarda todas las zonas en data/zonas.csv.
+  """
+  def guardar_zonas(zonas) when is_map(zonas) do
+    filas = Enum.map(zonas, fn {_codigo, zona} -> zona_a_fila(zona) end)
+    escribir_filas("zonas.csv", @encabezado_zonas, filas, "|")
   end
 end

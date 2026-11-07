@@ -1,0 +1,3 @@
+codigo|nombre|nivel|sectores_json
+Z001|Zona 1|critico|[{"nombre":"Centro","puntos":[{"nombre":"Escuela","personas_afectadas":50}]}]
+Z002|Zona Norte|alto|[]

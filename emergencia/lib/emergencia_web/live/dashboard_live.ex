@@ -24,20 +24,25 @@ defmodule EmergenciaWeb.DashboardLive do
     <div class="dashboard-container">
       <header>
         <h1>Panel de Emergencias</h1>
-        
+
         <div class="user-info">
           <p>Conectado como: <strong>{@username}</strong> ({@tipo}) - Zona: {@zona}</p>
-          
+
           <a href="/logout" class="btn-logout" data-confirm="¿Seguro que deseas salir?">Cerrar Sesión</a>
         </div>
       </header>
-      
+
       <main>
         <h2>Bienvenido al sistema</h2>
-        
         <p>Desde aquí podrás gestionar zonas, necesidades, recursos, albergues y reportes.</p>
-        
-        <p><em>(Los módulos de gestión se agregarán en las siguientes fases)</em></p>
+
+        <div class="menu">
+          <h3>Módulos disponibles:</h3>
+          <ul>
+            <li><a href="/zonas">Gestión de Zonas</a></li>
+            <!-- Aquí agregaremos más módulos luego -->
+          </ul>
+        </div>
       </main>
     </div>
     """

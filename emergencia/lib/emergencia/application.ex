@@ -13,6 +13,7 @@ defmodule Emergencia.Application do
       {Phoenix.PubSub, name: Emergencia.PubSub},
       {Finch, name: Emergencia.Finch},
       Emergencia.Usuarios,
+      Emergencia.Zonas,
       # Start a worker by calling: Emergencia.Worker.start_link(arg)
       # {Emergencia.Worker, arg},
       # Start to serve requests, typically the last entry
