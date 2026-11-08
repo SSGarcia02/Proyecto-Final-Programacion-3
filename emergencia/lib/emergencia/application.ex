@@ -16,6 +16,7 @@ defmodule Emergencia.Application do
       Emergencia.Zonas,
       Emergencia.Recursos,
       Emergencia.Necesidades,
+      Emergencia.Albergues,
       # Start a worker by calling: Emergencia.Worker.start_link(arg)
       # {Emergencia.Worker, arg},
       # Start to serve requests, typically the last entry

@@ -24,6 +24,18 @@ defmodule Emergencia.Necesidades do
     GenServer.call(__MODULE__, {:asignar_recurso, id_necesidad, codigo_recurso, cantidad})
   end
 
+  def eliminar(id) do
+    GenServer.call(__MODULE__, {:eliminar, id})
+  end
+
+  def actualizar(%Necesidad{} = necesidad) do
+    GenServer.call(__MODULE__, {:actualizar, necesidad})
+  end
+
+  def cambiar_estado(id, nuevo_estado) do
+    GenServer.call(__MODULE__, {:cambiar_estado, id, nuevo_estado})
+  end
+
   # ---------- Callbacks ----------
 
   @impl true
@@ -73,8 +85,9 @@ defmodule Emergencia.Necesidades do
       nil ->
         {:reply, {:error, :necesidad_no_encontrada}, necesidades}
 
-      %{estado: "atendida"} ->
-        {:reply, {:error, :ya_atendida}, necesidades}
+      # Si ya está atendida o cancelada, no se le pueden asignar más cosas
+      %{estado: estado} when estado in ["atendida", "cancelada"] ->
+        {:reply, {:error, :estado_no_valido_para_asignar}, necesidades}
 
       necesidad ->
         # 1. Verificamos que el recurso exista y coincida con el tipo de necesidad
@@ -84,10 +97,10 @@ defmodule Emergencia.Necesidades do
               # 2. Intentamos egresar el recurso del inventario
               case Emergencia.Recursos.egresar(codigo_recurso, cantidad) do
                 {:ok, _recurso_actualizado} ->
-                  # 3. Si el recurso se descontó con éxito, actualizamos la necesidad
+                  # 3. Si se descuenta bien, pasa a estado "asignada" (no a atendida)
                   nec_actualizada = %{
                     necesidad
-                    | estado: "atendida",
+                    | estado: "asignada",
                       recurso_asignado: "#{codigo_recurso} (#{cantidad})"
                   }
 
@@ -106,6 +119,44 @@ defmodule Emergencia.Necesidades do
 
           {:error, _} ->
             {:reply, {:error, :recurso_no_encontrado}, necesidades}
+        end
+    end
+  end
+
+  def handle_call({:eliminar, id}, _from, necesidades) do
+    if Map.has_key?(necesidades, id) do
+      nuevas_necesidades = Map.delete(necesidades, id)
+      Emergencia.Persistencia.guardar_necesidades(nuevas_necesidades)
+      {:reply, :ok, nuevas_necesidades}
+    else
+      {:reply, {:error, :no_encontrada}, necesidades}
+    end
+  end
+
+  def handle_call({:actualizar, necesidad}, _from, necesidades) do
+    if Map.has_key?(necesidades, necesidad.id) do
+      nuevas_necesidades = Map.put(necesidades, necesidad.id, necesidad)
+      Emergencia.Persistencia.guardar_necesidades(nuevas_necesidades)
+      {:reply, {:ok, necesidad}, nuevas_necesidades}
+    else
+      {:reply, {:error, :no_encontrada}, necesidades}
+    end
+  end
+
+  def handle_call({:cambiar_estado, id, nuevo_estado}, _from, necesidades) do
+    case Map.get(necesidades, id) do
+      nil ->
+        {:reply, {:error, :no_encontrada}, necesidades}
+
+      necesidad ->
+        # Validar que el estado sea válido
+        if Necesidad.estado_valido?(nuevo_estado) do
+          nec_actualizada = %{necesidad | estado: nuevo_estado}
+          nuevas_necesidades = Map.put(necesidades, id, nec_actualizada)
+          Emergencia.Persistencia.guardar_necesidades(nuevas_necesidades)
+          {:reply, {:ok, nec_actualizada}, nuevas_necesidades}
+        else
+          {:reply, {:error, :estado_invalido}, necesidades}
         end
     end
   end

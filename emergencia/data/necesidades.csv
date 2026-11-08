@@ -1,6 +1,12 @@
 id|tipo|cantidad_requerida|zona|prioridad|descripcion|responsable|estado|recurso_asignado|fecha_creacion
 N10371|alimentos|20|Z005|critica|Alimento 20 personas|Coordinador|atendida|R002 (20)|2026-11-08 00:52:01.339000Z
 N10435|medicamentos|20|Z002|media|medicina|Coordinador|atendida|R006 (20)|2026-11-08 00:52:48.959000Z
+N19906|agua|1|Z001|critica|aaaaa|Coordinador|atendida|R004 (1)|2026-11-08 17:58:23.367000Z
+N20866|agua|1|Z001|critica|www|Coordinador|atendida|R004 (1)|2026-11-08 18:06:43.111000Z
 N2372|agua|10|Z001|critica|Agua para damnificados|Coordinador|atendida|R004 (10)|2026-11-08 01:20:56.434000Z
-N7620|primeros_auxilios|20|Z003|alta|Medcina general|Coordinador|pendiente||2026-11-08 01:22:26.354000Z
-N7685|agua|50|Z001|alta|Agua para 100 personas|Coordinador|atendida|R001 (50)|2026-11-08 00:48:46.569000Z
+N3781|agua|1|Z001|critica|a|Coordinador|atendida|R004 (1)|2026-11-08 17:56:21.110000Z
+N6598|agua|1|Z001|critica|ssss|Coordinador|atendida|R004 (1)|2026-11-08 18:04:40.129000Z
+N6790|agua|1|Z001|critica|eeeee|Coordinador|atendida|R004 (1)|2026-11-08 18:10:45.868000Z
+N6914|agua|10|Z005|baja|Agua para 20 personas|Coordinador|atendida|R004 (10)|2026-11-08 17:42:47.491000Z
+N7043|agua|1|Z001|critica|zzz|Coordinador|cancelada||2026-11-08 18:04:23.133000Z
+N7620|medicamentos|20|Z001|critica|Medcina general|Coordinador|atendida|R006 (20)|2026-11-08 01:22:26.354000Z

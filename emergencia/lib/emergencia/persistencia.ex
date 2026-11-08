@@ -480,4 +480,87 @@ defmodule Emergencia.Persistencia do
     filas = Enum.map(necesidades, fn {_id, n} -> necesidad_a_fila(n) end)
     escribir_filas("necesidades.csv", @encabezado_necesidades, filas, "|")
   end
+
+  # ---------- Conversión de Albergue <-> fila CSV ----------
+
+  alias Emergencia.Albergues.Albergue
+
+  @encabezado_albergues [
+    "codigo",
+    "nombre",
+    "zona",
+    "capacidad_maxima",
+    "ocupacion_actual",
+    "personas_json",
+    "recursos_json",
+    "necesidades_json"
+  ]
+
+  def encabezado_albergues, do: @encabezado_albergues
+
+  def albergue_a_fila(%Albergue{} = a) do
+    [
+      a.codigo,
+      a.nombre,
+      a.zona,
+      to_string(a.capacidad_maxima),
+      to_string(a.ocupacion_actual),
+      Jason.encode!(a.personas),
+      Jason.encode!(a.recursos),
+      Jason.encode!(a.necesidades)
+    ]
+  end
+
+  def fila_a_albergue([
+        codigo,
+        nombre,
+        zona,
+        cap_str,
+        ocu_str,
+        personas_json,
+        recursos_json,
+        necesidades_json
+      ]) do
+    with {capacidad, ""} <- Integer.parse(cap_str),
+         {ocupacion, ""} <- Integer.parse(ocu_str),
+         {:ok, personas} <- Jason.decode(personas_json),
+         {:ok, recursos} <- Jason.decode(recursos_json),
+         {:ok, necesidades} <- Jason.decode(necesidades_json) do
+      {:ok,
+       %Albergue{
+         codigo: codigo,
+         nombre: nombre,
+         zona: zona,
+         capacidad_maxima: capacidad,
+         ocupacion_actual: ocupacion,
+         personas: personas,
+         recursos: recursos,
+         necesidades: necesidades
+       }}
+    else
+      _ -> {:error, :fila_invalida}
+    end
+  end
+
+  def fila_a_albergue(_), do: {:error, :fila_invalida}
+
+  def leer_albergues do
+    # Usamos "|" como separador para evitar conflictos con el JSON
+    with {:ok, filas} <- leer_filas("albergues.csv", "|") do
+      albergues =
+        filas
+        |> Enum.map(&fila_a_albergue/1)
+        |> Enum.reduce(%{}, fn
+          {:ok, albergue}, acc -> Map.put(acc, albergue.codigo, albergue)
+          {:error, _}, acc -> acc
+        end)
+
+      {:ok, albergues}
+    end
+  end
+
+  def guardar_albergues(albergues) when is_map(albergues) do
+    filas = Enum.map(albergues, fn {_codigo, a} -> albergue_a_fila(a) end)
+    escribir_filas("albergues.csv", @encabezado_albergues, filas, "|")
+  end
 end
