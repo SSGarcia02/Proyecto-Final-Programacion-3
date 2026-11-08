@@ -1,19 +1,27 @@
 defmodule EmergenciaWeb.DashboardLive do
   use EmergenciaWeb, :live_view
 
+  alias Emergencia.{Zonas, Necesidades, Recursos, Albergues, Personas}
+
   @impl true
   def mount(_params, session, socket) do
-    # session contiene lo que guardamos con put_session en el controlador
     case session do
       %{"username" => username, "tipo" => tipo, "zona" => zona} ->
+        # Obtenemos estadísticas rápidas de todo el sistema
         {:ok,
          socket
          |> assign(:username, username)
          |> assign(:tipo, tipo)
-         |> assign(:zona, zona)}
+         |> assign(:zona, zona)
+         |> assign(:stats, %{
+           zonas: length(Zonas.listar()),
+           necesidades: length(Necesidades.listar_ordenadas()),
+           recursos: length(Recursos.listar()),
+           albergues: length(Albergues.listar()),
+           personas: length(Personas.listar_personas())
+         })}
 
       _ ->
-        # Si no hay sesión, redirigimos al login
         {:ok, redirect(socket, to: "/login")}
     end
   end
@@ -21,31 +29,65 @@ defmodule EmergenciaWeb.DashboardLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="dashboard-container">
-      <header>
+    <div class="zonas-container">
+      <!-- BARRA SUPERIOR CORREGIDA -->
+      <div class="dashboard-header">
         <h1>Panel de Emergencias</h1>
-
-        <div class="user-info">
-          <p>Conectado como: <strong>{@username}</strong> ({@tipo}) - Zona: {@zona}</p>
-
-          <a href="/logout" class="btn-logout" data-confirm="¿Seguro que deseas salir?">Cerrar Sesión</a>
+        <div>
+          <span style="margin-right: 1rem;">
+            Conectado como: <strong><%= @username %></strong> (<%= @tipo %>)
+          </span>
+          <a href="/logout" style="color: white; text-decoration: underline;">Cerrar Sesión</a>
         </div>
-      </header>
+      </div>
 
-      <main>
-        <h2>Bienvenido al sistema</h2>
-        <p>Desde aquí podrás gestionar zonas, necesidades, recursos, albergues y reportes.</p>
+      <!-- CONTENIDO -->
+      <div style="background: #e9ecef; padding: 1rem; border-radius: 8px; border-left: 4px solid #007bff; margin-bottom: 2rem;">
+        <h2 style="margin-top: 0; color: #333;">Bienvenido al Sistema de Emergencias</h2>
+        <p style="margin: 0; color: #555;">
+          Estado actual:
+          <strong><%= @stats.zonas %></strong> Zonas |
+          <strong><%= @stats.necesidades %></strong> Necesidades |
+          <strong><%= @stats.recursos %></strong> Recursos en Inventario |
+          <strong><%= @stats.albergues %></strong> Albergues |
+          <strong><%= @stats.personas %></strong> Personas Registradas
+        </p>
+      </div>
 
-        <div class="menu">
-          <h3>Módulos disponibles:</h3>
-          <ul>
-            <li><a href="/zonas">Gestión de Zonas</a></li>
-            <li><a href="/recursos">Inventario de Recursos</a></li>
-            <li><a href="/necesidades">Gestión de Necesidades</a></li>
-            <li><a href="/albergues">Gestión de Albergues</a></li>
-          </ul>
+      <h3 style="color: #333; margin-bottom: 1rem;">Módulos del Sistema</h3>
+
+      <div class="dashboard-grid">
+        <a href="/zonas" class="dashboard-card">
+          <h3>Gestión de Zonas</h3>
+          <p>Registra sectores, puntos de atención y niveles de afectación.</p>
+        </a>
+
+        <a href="/recursos" class="dashboard-card">
+          <h3>Inventario de Recursos</h3>
+          <p>Controla suministros, entradas y salidas de los centros de acopio.</p>
+        </a>
+
+        <a href="/necesidades" class="dashboard-card">
+          <h3>Gestión de Necesidades</h3>
+          <p>Administra solicitudes de ayuda y asígnalas a recursos disponibles.</p>
+        </a>
+
+        <a href="/albergues" class="dashboard-card">
+          <h3>Gestión de Albergues</h3>
+          <p>Controla cupos, capacidad máxima y personas alojadas.</p>
+        </a>
+
+        <a href="/personas" class="dashboard-card">
+          <h3>Personas y Mensajes</h3>
+          <p>Busca damnificados y permite la comunicación entre familiares.</p>
+        </a>
+
+        <!-- Espacio para el módulo de Mascotas (Fase 7) -->
+        <div class="dashboard-card" style="background: #eee; cursor: not-allowed; opacity: 0.7;">
+          <h3 style="color: #888 !important;">Mascotas (Próximamente)</h3>
+          <p>Registro de mascotas perdidas y encontradas.</p>
         </div>
-      </main>
+      </div>
     </div>
     """
   end

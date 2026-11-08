@@ -23,6 +23,7 @@ defmodule EmergenciaWeb.Router do
     live "/recursos", RecursosLive, :index
     live "/necesidades", NecesidadesLive, :index
     live "/albergues", AlberguesLive, :index
+    live "/personas", PersonasLive, :index
     get "/sesion/crear", SesionController, :crear
     delete "/sesion/eliminar", SesionController, :eliminar
     get "/logout", SesionController, :eliminar

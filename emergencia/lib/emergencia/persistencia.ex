@@ -563,4 +563,112 @@ defmodule Emergencia.Persistencia do
     filas = Enum.map(albergues, fn {_codigo, a} -> albergue_a_fila(a) end)
     escribir_filas("albergues.csv", @encabezado_albergues, filas, "|")
   end
+
+  # ---------- Conversión de Persona <-> fila CSV ----------
+  alias Emergencia.Personas.{Persona, Mensaje}
+
+  @encabezado_personas ["documento", "nombre", "zona", "edad", "estado", "historial_json"]
+
+  def encabezado_personas, do: @encabezado_personas
+
+  def persona_a_fila(%Persona{} = p) do
+    [
+      p.documento,
+      p.nombre,
+      p.zona,
+      to_string(p.edad || ""),
+      p.estado,
+      Jason.encode!(p.historial_estados)
+    ]
+  end
+
+  def fila_a_persona([documento, nombre, zona, edad_str, estado, historial_json]) do
+    with {:ok, historial} <- Jason.decode(historial_json) do
+      edad = if edad_str == "", do: nil, else: String.to_integer(edad_str)
+
+      {:ok,
+       %Persona{
+         documento: documento,
+         nombre: nombre,
+         zona: zona,
+         edad: edad,
+         estado: estado,
+         historial_estados: historial
+       }}
+    else
+      _ -> {:error, :fila_invalida}
+    end
+  end
+
+  def fila_a_persona(_), do: {:error, :fila_invalida}
+
+  def leer_personas do
+    with {:ok, filas} <- leer_filas("personas.csv", "|") do
+      personas =
+        filas
+        |> Enum.map(&fila_a_persona/1)
+        |> Enum.reduce(%{}, fn
+          {:ok, p}, acc -> Map.put(acc, p.documento, p)
+          {:error, _}, acc -> acc
+        end)
+
+      {:ok, personas}
+    end
+  end
+
+  def guardar_personas(personas) when is_map(personas) do
+    filas = Enum.map(personas, fn {_doc, p} -> persona_a_fila(p) end)
+    escribir_filas("personas.csv", @encabezado_personas, filas, "|")
+  end
+
+  # ---------- Conversión de Mensaje <-> fila CSV ----------
+  @encabezado_mensajes ["id", "documento_destino", "remitente", "contenido", "leido", "fecha"]
+
+  def encabezado_mensajes, do: @encabezado_mensajes
+
+  def mensaje_a_fila(%Mensaje{} = m) do
+    [
+      m.id,
+      m.documento_destino,
+      m.remitente,
+      m.contenido,
+      to_string(m.leido),
+      m.fecha || ""
+    ]
+  end
+
+  def fila_a_mensaje([id, doc, remitente, contenido, leido_str, fecha]) do
+    leido = leido_str == "true"
+
+    {:ok,
+     %Mensaje{
+       id: id,
+       documento_destino: doc,
+       remitente: remitente,
+       contenido: contenido,
+       leido: leido,
+       fecha: fecha
+     }}
+  end
+
+  def fila_a_mensaje(_), do: {:error, :fila_invalida}
+
+  def leer_mensajes do
+    with {:ok, filas} <- leer_filas("mensajes.csv", "|") do
+      mensajes =
+        filas
+        |> Enum.map(&fila_a_mensaje/1)
+        |> Enum.reduce(%{}, fn
+          {:ok, m}, acc -> Map.put(acc, m.id, m)
+          {:error, _}, acc -> acc
+        end)
+
+      {:ok, mensajes}
+    end
+  end
+
+  def guardar_mensajes(mensajes) when is_map(mensajes) do
+    filas = Enum.map(mensajes, fn {_id, m} -> mensaje_a_fila(m) end)
+    escribir_filas("mensajes.csv", @encabezado_mensajes, filas, "|")
+  end
 end
