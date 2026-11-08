@@ -41,7 +41,7 @@ defmodule EmergenciaWeb.DashboardLive do
           <ul>
             <li><a href="/zonas">Gestión de Zonas</a></li>
             <li><a href="/recursos">Inventario de Recursos</a></li>
-            <!-- <-- NUEVO -->
+            <li><a href="/necesidades">Gestión de Necesidades</a></li>
           </ul>
         </div>
       </main>

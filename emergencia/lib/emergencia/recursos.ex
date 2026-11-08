@@ -31,7 +31,7 @@ defmodule Emergencia.Recursos do
     GenServer.call(__MODULE__, {:egresar, codigo, cantidad})
   end
 
-    def eliminar(codigo) do
+  def eliminar(codigo) do
     GenServer.call(__MODULE__, {:eliminar, codigo})
   end
 
@@ -108,7 +108,7 @@ defmodule Emergencia.Recursos do
     end
   end
 
-    @impl true
+  @impl true
   def handle_call({:eliminar, codigo}, _from, recursos) do
     if Map.has_key?(recursos, codigo) do
       nuevos_recursos = Map.delete(recursos, codigo)

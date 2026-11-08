@@ -1,0 +1,6 @@
+id|tipo|cantidad_requerida|zona|prioridad|descripcion|responsable|estado|recurso_asignado|fecha_creacion
+N10371|alimentos|20|Z005|critica|Alimento 20 personas|Coordinador|atendida|R002 (20)|2026-11-08 00:52:01.339000Z
+N10435|medicamentos|20|Z002|media|medicina|Coordinador|atendida|R006 (20)|2026-11-08 00:52:48.959000Z
+N2372|agua|10|Z001|critica|Agua para damnificados|Coordinador|atendida|R004 (10)|2026-11-08 01:20:56.434000Z
+N7620|primeros_auxilios|20|Z003|alta|Medcina general|Coordinador|pendiente||2026-11-08 01:22:26.354000Z
+N7685|agua|50|Z001|alta|Agua para 100 personas|Coordinador|atendida|R001 (50)|2026-11-08 00:48:46.569000Z

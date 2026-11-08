@@ -16,6 +16,17 @@ defmodule Emergencia.Recursos.Recurso do
     historial: []
   ]
 
+  @categorias [
+    :agua,
+    :alimentos,
+    :medicamentos,
+    :primeros_auxilios,
+    :refugio,
+    :transporte,
+    :rescate,
+    :otra
+  ]
+
   @doc """
   Registra una entrada de inventario (suma cantidad) y la guarda en el historial.
   """
@@ -62,4 +73,16 @@ defmodule Emergencia.Recursos.Recurso do
   end
 
   def egresar(%__MODULE__{}, _cantidad), do: {:error, :cantidad_invalida}
+
+  def categorias, do: @categorias
+
+  def categoria_valida?(cat) when is_atom(cat), do: cat in @categorias
+  def categoria_valida?(_), do: false
+
+  def parsear_categoria(texto) when is_binary(texto) do
+    cat =
+      texto |> String.trim() |> String.downcase() |> String.replace(" ", "_") |> String.to_atom()
+
+    if categoria_valida?(cat), do: {:ok, cat}, else: {:error, :categoria_invalida}
+  end
 end

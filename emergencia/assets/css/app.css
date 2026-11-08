@@ -350,3 +350,7 @@ input[type="radio"] {
   text-align: center;
   font-size: 0.9rem;
 }
+
+td strong {
+  color: #333333 !important;
+}

@@ -17,7 +17,7 @@ defmodule EmergenciaWeb.RecursosLive do
   def handle_event("registrar", params, socket) do
     codigo = String.trim(params["codigo"])
     nombre = String.trim(params["nombre"])
-    categoria = String.trim(params["categoria"])
+    categoria = params["categoria"]
     unidad = String.trim(params["unidad"])
     ubicacion = String.trim(params["ubicacion"])
 
@@ -34,11 +34,11 @@ defmodule EmergenciaWeb.RecursosLive do
 
         resultado =
           if socket.assigns.recurso_editando do
-            # Al editar, conservamos el historial de movimientos
-            recurso_viejo = Enum.find(socket.assigns.recursos, &(&1.codigo == socket.assigns.recurso_editando))
+            recurso_viejo =
+              Enum.find(socket.assigns.recursos, &(&1.codigo == socket.assigns.recurso_editando))
+
             recurso_actualizado = %{recurso | historial: recurso_viejo.historial}
 
-            # Si cambió el código, borramos el viejo y creamos el nuevo
             Recursos.eliminar(socket.assigns.recurso_editando)
             Recursos.registrar(recurso_actualizado)
           else
@@ -58,13 +58,15 @@ defmodule EmergenciaWeb.RecursosLive do
         end
 
       _ ->
-        {:noreply, assign(socket, :error, "La cantidad debe ser un número entero mayor o igual a 0.")}
+        {:noreply,
+         assign(socket, :error, "La cantidad debe ser un número entero mayor o igual a 0.")}
     end
   end
 
   @impl true
   def handle_event("eliminar", %{"codigo" => codigo}, socket) do
     Recursos.eliminar(codigo)
+
     {:noreply,
      socket
      |> assign(:recursos, Recursos.listar())
@@ -81,7 +83,11 @@ defmodule EmergenciaWeb.RecursosLive do
   end
 
   @impl true
-  def handle_event("movimiento", %{"codigo" => codigo, "tipo" => tipo, "cantidad" => cant_str}, socket) do
+  def handle_event(
+        "movimiento",
+        %{"codigo" => codigo, "tipo" => tipo, "cantidad" => cant_str},
+        socket
+      ) do
     case Integer.parse(cant_str) do
       {cantidad, ""} when cantidad > 0 ->
         resultado =
@@ -119,10 +125,11 @@ defmodule EmergenciaWeb.RecursosLive do
         <a href="/dashboard" style="text-decoration: none; color: #007bff; font-weight: bold;">← Volver al Dashboard</a>
       </header>
 
-      <div :if={@error} class="error"><%= @error %></div>
+      <div :if={@error} class="error">{@error}</div>
 
       <div class="form-section">
-        <h2><%= if @recurso_editando, do: "Editar Recurso", else: "Registrar Nuevo Recurso" %></h2>
+        <h2>{if @recurso_editando, do: "Editar Recurso", else: "Registrar Nuevo Recurso"}</h2>
+
         <form phx-submit="registrar" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
           <div>
             <label>Código:</label>
@@ -130,38 +137,80 @@ defmodule EmergenciaWeb.RecursosLive do
           </div>
           <div>
             <label>Nombre:</label>
-            <input type="text" name="nombre" value={
-              if @recurso_editando, do: Enum.find(@recursos, &(&1.codigo == @recurso_editando)).nombre, else: ""
-            } required />
+            <input
+              type="text"
+              name="nombre"
+              value={
+                if @recurso_editando,
+                  do: Enum.find(@recursos, &(&1.codigo == @recurso_editando)).nombre,
+                  else: ""
+              }
+              required
+            />
           </div>
+
           <div>
             <label>Categoría:</label>
-            <input type="text" name="categoria" value={
-              if @recurso_editando, do: Enum.find(@recursos, &(&1.codigo == @recurso_editando)).categoria, else: ""
-            } required />
+            <select name="categoria" required>
+              <%= for cat <- Recurso.categorias() do %>
+                <option value={cat}>{cat}</option>
+              <% end %>
+            </select>
           </div>
+
           <div>
             <label>Unidad de medida:</label>
-            <input type="text" name="unidad" value={
-              if @recurso_editando, do: Enum.find(@recursos, &(&1.codigo == @recurso_editando)).unidad, else: ""
-            } required />
+            <input
+              type="text"
+              name="unidad"
+              value={
+                if @recurso_editando,
+                  do: Enum.find(@recursos, &(&1.codigo == @recurso_editando)).unidad,
+                  else: ""
+              }
+              required
+            />
           </div>
+
           <div>
             <label>Ubicación:</label>
-            <input type="text" name="ubicacion" value={
-              if @recurso_editando, do: Enum.find(@recursos, &(&1.codigo == @recurso_editando)).ubicacion, else: ""
-            } required />
+            <input
+              type="text"
+              name="ubicacion"
+              value={
+                if @recurso_editando,
+                  do: Enum.find(@recursos, &(&1.codigo == @recurso_editando)).ubicacion,
+                  else: ""
+              }
+              required
+            />
           </div>
+
           <div>
             <label>Cantidad inicial:</label>
-            <input type="number" name="cantidad" value={
-              if @recurso_editando, do: Enum.find(@recursos, &(&1.codigo == @recurso_editando)).cantidad, else: 0
-            } min="0" required />
+            <input
+              type="number"
+              name="cantidad"
+              value={
+                if @recurso_editando,
+                  do: Enum.find(@recursos, &(&1.codigo == @recurso_editando)).cantidad,
+                  else: 0
+              }
+              min="0"
+              required
+            />
           </div>
 
           <div style="grid-column: span 2; display: flex; gap: 1rem; margin-top: 1rem;">
-            <button type="submit"><%= if @recurso_editando, do: "Guardar Cambios", else: "Registrar Recurso" %></button>
-            <button :if={@recurso_editando} type="button" phx-click="cancelar_edicion" style="background-color: #6c757d;">Cancelar</button>
+            <button type="submit">{if @recurso_editando,
+              do: "Guardar Cambios",
+              else: "Registrar Recurso"}</button>
+            <button
+              :if={@recurso_editando}
+              type="button"
+              phx-click="cancelar_edicion"
+              style="background-color: #6c757d;"
+            >Cancelar</button>
           </div>
         </form>
       </div>
@@ -181,24 +230,36 @@ defmodule EmergenciaWeb.RecursosLive do
           </thead>
           <tbody>
             <tr :for={r <- @recursos}>
-              <td><%= r.codigo %></td>
-              <td><%= r.nombre %> (<%= r.categoria %>)</td>
-              <td><%= r.ubicacion %></td>
-              <td><strong><%= r.cantidad %></strong> <%= r.unidad %></td>
+              <td>{r.codigo}</td>
+              <td>{r.nombre} ({r.categoria})</td>
+              <td>{r.ubicacion}</td>
+              <td><strong>{r.cantidad}</strong> {r.unidad}</td>
               <td>
-                <form phx-submit="movimiento" style="display: flex; gap: 0.5rem;">
+                <form phx-submit="movimiento" style="display: flex; gap: 0.5rem; align-items: center;">
                   <input type="hidden" name="codigo" value={r.codigo} />
-                  <select name="tipo">
+                  <select name="tipo" style="width: auto; padding: 0.2rem;">
                     <option value="entrada">+ Entrada</option>
                     <option value="salida">- Salida</option>
                   </select>
-                  <input type="number" name="cantidad" min="1" placeholder="Cant." style="width: 70px;" required />
+                  <input
+                    type="number"
+                    name="cantidad"
+                    min="1"
+                    placeholder="Cant."
+                    style="width: 70px; padding: 0.2rem;"
+                    required
+                  />
                   <button type="submit" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">Aplicar</button>
                 </form>
               </td>
               <td>
                 <button class="btn-accion btn-editar" phx-click="editar" phx-value-codigo={r.codigo}>Editar</button>
-                <button class="btn-accion btn-eliminar" phx-click="eliminar" phx-value-codigo={r.codigo} data-confirm="¿Eliminar recurso?">Eliminar</button>
+                <button
+                  class="btn-accion btn-eliminar"
+                  phx-click="eliminar"
+                  phx-value-codigo={r.codigo}
+                  data-confirm="¿Eliminar recurso?"
+                >Eliminar</button>
               </td>
             </tr>
           </tbody>

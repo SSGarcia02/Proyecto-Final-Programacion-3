@@ -38,7 +38,7 @@ defmodule EmergenciaWeb.LoginLive do
     end
   end
 
-    @impl true
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="login-page">
@@ -47,18 +47,29 @@ defmodule EmergenciaWeb.LoginLive do
         <h2>Iniciar Sesión</h2>
 
         <div :if={@error} class="error">
-          <%= @error %>
+          {@error}
         </div>
 
         <form phx-submit="conectar">
           <div class="form-group">
             <label for="username">Usuario</label>
-            <input type="text" name="username" id="username" value={@username} placeholder="Ingresa tu usuario" />
+            <input
+              type="text"
+              name="username"
+              id="username"
+              value={@username}
+              placeholder="Ingresa tu usuario"
+            />
           </div>
 
           <div class="form-group">
             <label for="password">Contraseña</label>
-            <input type="password" name="password" id="password" placeholder="••••••••" />
+            <input
+              type="password"
+              name="password"
+              id="password"
+              placeholder="••••••••"
+            />
           </div>
 
           <button type="submit">Conectar</button>

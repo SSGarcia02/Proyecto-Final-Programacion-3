@@ -392,4 +392,92 @@ defmodule Emergencia.Persistencia do
     filas = Enum.map(recursos, fn {_codigo, r} -> recurso_a_fila(r) end)
     escribir_filas("recursos.csv", @encabezado_recursos, filas, "|")
   end
+
+  # ---------- Conversión de Necesidad <-> fila CSV ----------
+
+  alias Emergencia.Necesidades.Necesidad
+
+  @encabezado_necesidades [
+    "id",
+    "tipo",
+    "cantidad_requerida",
+    "zona",
+    "prioridad",
+    "descripcion",
+    "responsable",
+    "estado",
+    "recurso_asignado",
+    "fecha_creacion"
+  ]
+
+  def encabezado_necesidades, do: @encabezado_necesidades
+
+  def necesidad_a_fila(%Necesidad{} = n) do
+    [
+      n.id,
+      Atom.to_string(n.tipo),
+      to_string(n.cantidad_requerida),
+      n.zona,
+      Atom.to_string(n.prioridad),
+      n.descripcion,
+      n.responsable,
+      n.estado,
+      n.recurso_asignado || "",
+      n.fecha_creacion || ""
+    ]
+  end
+
+  def fila_a_necesidad([
+        id,
+        tipo_str,
+        cant_str,
+        zona,
+        prio_str,
+        desc,
+        resp,
+        estado,
+        rec_asig,
+        fecha
+      ]) do
+    with {:ok, tipo} <- Necesidad.parsear_tipo(tipo_str),
+         {:ok, prioridad} <- Necesidad.parsear_prioridad(prio_str),
+         {cantidad, ""} <- Integer.parse(cant_str) do
+      {:ok,
+       %Necesidad{
+         id: id,
+         tipo: tipo,
+         cantidad_requerida: cantidad,
+         zona: zona,
+         prioridad: prioridad,
+         descripcion: desc,
+         responsable: resp,
+         estado: estado,
+         recurso_asignado: if(rec_asig == "", do: nil, else: rec_asig),
+         fecha_creacion: fecha
+       }}
+    else
+      _ -> {:error, :fila_invalida}
+    end
+  end
+
+  def fila_a_necesidad(_), do: {:error, :fila_invalida}
+
+  def leer_necesidades do
+    with {:ok, filas} <- leer_filas("necesidades.csv", "|") do
+      necesidades =
+        filas
+        |> Enum.map(&fila_a_necesidad/1)
+        |> Enum.reduce(%{}, fn
+          {:ok, nec}, acc -> Map.put(acc, nec.id, nec)
+          {:error, _}, acc -> acc
+        end)
+
+      {:ok, necesidades}
+    end
+  end
+
+  def guardar_necesidades(necesidades) when is_map(necesidades) do
+    filas = Enum.map(necesidades, fn {_id, n} -> necesidad_a_fila(n) end)
+    escribir_filas("necesidades.csv", @encabezado_necesidades, filas, "|")
+  end
 end
