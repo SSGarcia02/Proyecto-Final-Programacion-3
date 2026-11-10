@@ -1,3 +1,4 @@
 username,password,nombre_completo,tipo,zona,conectado
-carlos,abcd,carlos,ciudadano,norte,true
+Admin,1234,Admin,ciudadano,sin_zona,true
+carlos,abcd,carlos,ciudadano,norte,false
 laura,1234,Laura Gómez,coordinador,centro,true

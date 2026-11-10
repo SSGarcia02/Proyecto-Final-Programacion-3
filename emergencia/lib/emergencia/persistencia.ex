@@ -671,4 +671,91 @@ defmodule Emergencia.Persistencia do
     filas = Enum.map(mensajes, fn {_id, m} -> mensaje_a_fila(m) end)
     escribir_filas("mensajes.csv", @encabezado_mensajes, filas, "|")
   end
+
+  # ---------- Conversión de Mascota <-> fila CSV ----------
+
+  alias Emergencia.Mascotas.Mascota
+
+  @encabezado_mascotas [
+    "id",
+    "tipo_reporte",
+    "especie",
+    "nombre",
+    "caracteristicas",
+    "color",
+    "tamano",
+    "zona",
+    "contacto",
+    "estado",
+    "reporte_vinculado"
+  ]
+
+  def encabezado_mascotas, do: @encabezado_mascotas
+
+  def mascota_a_fila(%Mascota{} = m) do
+    [
+      m.id,
+      m.tipo_reporte,
+      m.especie,
+      m.nombre || "",
+      m.caracteristicas || "",
+      m.color || "",
+      m.tamano || "",
+      m.zona,
+      m.contacto,
+      m.estado,
+      m.reporte_vinculado || ""
+    ]
+  end
+
+  def fila_a_mascota([
+        id,
+        tipo,
+        especie,
+        nombre,
+        caract,
+        color,
+        tamano,
+        zona,
+        contacto,
+        estado,
+        vinculado
+      ]) do
+    {:ok,
+     %Mascota{
+       id: id,
+       tipo_reporte: tipo,
+       especie: especie,
+       nombre: if(nombre == "", do: nil, else: nombre),
+       caracteristicas: if(caract == "", do: nil, else: caract),
+       color: if(color == "", do: nil, else: color),
+       tamano: if(tamano == "", do: nil, else: tamano),
+       zona: zona,
+       contacto: contacto,
+       estado: estado,
+       reporte_vinculado: if(vinculado == "", do: nil, else: vinculado)
+     }}
+  end
+
+  def fila_a_mascota(_), do: {:error, :fila_invalida}
+
+  def leer_mascotas do
+    # Usamos "|" porque las características pueden tener comas
+    with {:ok, filas} <- leer_filas("mascotas.csv", "|") do
+      mascotas =
+        filas
+        |> Enum.map(&fila_a_mascota/1)
+        |> Enum.reduce(%{}, fn
+          {:ok, m}, acc -> Map.put(acc, m.id, m)
+          {:error, _}, acc -> acc
+        end)
+
+      {:ok, mascotas}
+    end
+  end
+
+  def guardar_mascotas(mascotas) when is_map(mascotas) do
+    filas = Enum.map(mascotas, fn {_id, m} -> mascota_a_fila(m) end)
+    escribir_filas("mascotas.csv", @encabezado_mascotas, filas, "|")
+  end
 end
