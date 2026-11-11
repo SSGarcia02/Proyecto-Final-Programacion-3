@@ -3,14 +3,25 @@ defmodule EmergenciaWeb.RecursosLive do
 
   alias Emergencia.Recursos
   alias Emergencia.Recursos.Recurso
+  alias Emergencia.Usuarios
 
   @impl true
-  def mount(_params, _session, socket) do
-    {:ok,
-     socket
-     |> assign(:recursos, Recursos.listar())
-     |> assign(:error, nil)
-     |> assign(:recurso_editando, nil)}
+  def mount(_params, session, socket) do
+    tipo = session["tipo"] || "ciudadano"
+    username = session["username"] || "desconocido"
+
+    if tipo in ["coordinador", "administrador", "voluntario"] do
+      {:ok,
+       socket
+       |> assign(:recursos, Recursos.listar())
+       |> assign(:username, username)
+       |> assign(:filtro_categoria, "")
+       |> assign(:filtro_ubicacion, "")
+       |> assign(:error, nil)
+       |> assign(:recurso_editando, nil)}
+    else
+      {:ok, push_navigate(socket, to: "/dashboard")}
+    end
   end
 
   @impl true
@@ -47,6 +58,12 @@ defmodule EmergenciaWeb.RecursosLive do
 
         case resultado do
           {:ok, _} ->
+            # <-- NUEVO: REGISTRO DE ACTIVIDAD
+            Usuarios.registrar_actividad(
+              socket.assigns.username,
+              "Registró/Actualizó el recurso #{codigo}"
+            )
+
             {:noreply,
              socket
              |> assign(:recursos, Recursos.listar())
@@ -66,6 +83,8 @@ defmodule EmergenciaWeb.RecursosLive do
   @impl true
   def handle_event("eliminar", %{"codigo" => codigo}, socket) do
     Recursos.eliminar(codigo)
+    # <-- NUEVO: REGISTRO DE ACTIVIDAD
+    Usuarios.registrar_actividad(socket.assigns.username, "Eliminó el recurso #{codigo}")
 
     {:noreply,
      socket
@@ -80,6 +99,13 @@ defmodule EmergenciaWeb.RecursosLive do
 
   def handle_event("cancelar_edicion", _, socket) do
     {:noreply, assign(socket, :recurso_editando, nil)}
+  end
+
+  def handle_event("filtrar", params, socket) do
+    {:noreply,
+     socket
+     |> assign(:filtro_categoria, params["categoria"] || "")
+     |> assign(:filtro_ubicacion, params["ubicacion"] || "")}
   end
 
   @impl true
@@ -99,6 +125,12 @@ defmodule EmergenciaWeb.RecursosLive do
 
         case resultado do
           {:ok, _} ->
+            # <-- NUEVO: REGISTRO DE ACTIVIDAD
+            Usuarios.registrar_actividad(
+              socket.assigns.username,
+              "Registró movimiento (#{tipo}) de #{cantidad} en #{codigo}"
+            )
+
             {:noreply,
              socket
              |> assign(:recursos, Recursos.listar())
@@ -114,6 +146,50 @@ defmodule EmergenciaWeb.RecursosLive do
       _ ->
         {:noreply, assign(socket, :error, "La cantidad debe ser un número entero mayor a 0.")}
     end
+  end
+
+  def handle_event(
+        "transferir",
+        %{"origen" => origen, "destino" => destino, "cantidad" => cant_str},
+        socket
+      ) do
+    case Integer.parse(cant_str) do
+      {cantidad, ""} when cantidad > 0 ->
+        case Recursos.transferir(origen, destino, cantidad) do
+          {:ok, _, _} ->
+            # <-- REGISTRO DE ACTIVIDAD
+            Usuarios.registrar_actividad(
+              socket.assigns.username,
+              "Transfirió #{cantidad} unidades de #{origen} a #{destino}"
+            )
+
+            {:noreply,
+             socket
+             |> assign(:recursos, Recursos.listar())
+             |> assign(:error, nil)}
+
+          {:error, :categoria_incompatible} ->
+            {:noreply,
+             assign(socket, :error, "No se pueden transferir recursos de diferentes categorías.")}
+
+          {:error, :sin_existencias} ->
+            {:noreply,
+             assign(socket, :error, "El recurso de origen no tiene suficientes existencias.")}
+
+          _ ->
+            {:noreply, assign(socket, :error, "Error al transferir.")}
+        end
+
+      _ ->
+        {:noreply, assign(socket, :error, "Cantidad inválida.")}
+    end
+  end
+
+  defp filtrar_recursos(recursos, categoria, ubicacion) do
+    Enum.filter(recursos, fn r ->
+      (categoria == "" or Atom.to_string(r.categoria) == categoria) and
+        (ubicacion == "" or r.ubicacion == ubicacion)
+    end)
   end
 
   @impl true
@@ -215,8 +291,70 @@ defmodule EmergenciaWeb.RecursosLive do
         </form>
       </div>
 
+      <!-- FORMULARIO DE TRANSFERENCIA -->
+      <div class="form-section" style="background-color: #e8f4f8; border: 1px solid #17a2b8;">
+        <h2 style="color: #17a2b8;">Transferir entre Centros</h2>
+        <form
+          phx-submit="transferir"
+          style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1rem; align-items: end;"
+        >
+          <div>
+            <label>Origen:</label>
+            <select name="origen" required>
+              <option value="">Seleccione</option>
+              <%= for r <- @recursos do %>
+                <option value={r.codigo}>{r.nombre} ({r.ubicacion})</option>
+              <% end %>
+            </select>
+          </div>
+          <div>
+            <label>Destino:</label>
+            <select name="destino" required>
+              <option value="">Seleccione</option>
+              <%= for r <- @recursos do %>
+                <option value={r.codigo}>{r.nombre} ({r.ubicacion})</option>
+              <% end %>
+            </select>
+          </div>
+          <div>
+            <label>Cantidad:</label>
+            <input type="number" name="cantidad" min="1" required />
+          </div>
+          <div>
+            <button type="submit" style="background-color: #17a2b8; width: 100%;">Transferir</button>
+          </div>
+        </form>
+      </div>
+
       <div class="list-section">
         <h2>Recursos en Inventario</h2>
+
+        <!-- BARRA DE FILTROS -->
+        <form
+          phx-change="filtrar"
+          style="display: flex; gap: 1rem; margin-bottom: 1rem; background: #f8f9fa; padding: 0.5rem; border-radius: 4px;"
+        >
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-weight: bold; font-size: 0.9rem;">Categoría:</span>
+            <select name="categoria" style="width: auto; padding: 0.2rem; margin: 0;">
+              <option value="">Todas</option>
+              <%= for cat <- Recurso.categorias() do %>
+                <option value={cat} selected={@filtro_categoria == Atom.to_string(cat)}>{cat}</option>
+              <% end %>
+            </select>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-weight: bold; font-size: 0.9rem;">Ubicación:</span>
+            <select name="ubicacion" style="width: auto; padding: 0.2rem; margin: 0;">
+              <option value="">Todas</option>
+              <%= for u <- (Enum.map(@recursos, & &1.ubicacion) |> Enum.uniq() |> Enum.sort()) do %>
+                <option value={u} selected={@filtro_ubicacion == u}>{u}</option>
+              <% end %>
+            </select>
+          </div>
+        </form>
+
         <table>
           <thead>
             <tr>
@@ -229,7 +367,7 @@ defmodule EmergenciaWeb.RecursosLive do
             </tr>
           </thead>
           <tbody>
-            <tr :for={r <- @recursos}>
+            <tr :for={r <- filtrar_recursos(@recursos, @filtro_categoria, @filtro_ubicacion)}>
               <td>{r.codigo}</td>
               <td>{r.nombre} ({r.categoria})</td>
               <td>{r.ubicacion}</td>

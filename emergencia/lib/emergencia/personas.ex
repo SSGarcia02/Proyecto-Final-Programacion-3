@@ -91,6 +91,7 @@ defmodule Emergencia.Personas do
           }
 
           nuevas_personas = Map.put(state.personas, documento, persona_actualizada)
+          Emergencia.Persistencia.guardar_personas(nuevas_personas)
           {:reply, {:ok, persona_actualizada}, %{state | personas: nuevas_personas}}
         else
           {:reply, {:error, :estado_invalido}, state}
@@ -122,6 +123,7 @@ defmodule Emergencia.Personas do
       mensaje ->
         actualizado = %{mensaje | leido: true}
         nuevos_mensajes = Map.put(state.mensajes, id, actualizado)
+        Emergencia.Persistencia.guardar_mensajes(nuevos_mensajes)
         {:reply, {:ok, actualizado}, %{state | mensajes: nuevos_mensajes}}
     end
   end

@@ -13,6 +13,7 @@ defmodule Emergencia.Necesidades.Necesidad do
     :prioridad,
     :descripcion,
     :responsable,
+    :asociado_a,
     estado: "pendiente",
     recurso_asignado: nil,
     fecha_creacion: nil

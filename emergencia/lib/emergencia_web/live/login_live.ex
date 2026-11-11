@@ -27,6 +27,7 @@ defmodule EmergenciaWeb.LoginLive do
       true ->
         case Usuarios.conectar(username, password) do
           {:ok, usuario} ->
+            Usuarios.registrar_actividad(usuario.username, "Inició sesión en el sistema")
             {:noreply, redirect(socket, to: "/sesion/crear?username=#{usuario.username}")}
 
           {:error, :password_incorrecta} ->

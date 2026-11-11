@@ -6,17 +6,27 @@ defmodule EmergenciaWeb.AlberguesLive do
   alias Emergencia.Zonas
   alias Emergencia.Recursos
   alias Emergencia.Necesidades
+  # <-- NUEVO ALIAS
+  alias Emergencia.Usuarios
 
   @impl true
-  def mount(_params, _session, socket) do
-    {:ok,
-     socket
-     |> assign(:albergues, Albergues.listar())
-     |> assign(:zonas, Zonas.listar())
-     |> assign(:recursos, Recursos.listar())
-     |> assign(:necesidades, Necesidades.listar_ordenadas())
-     |> assign(:albergue_expandido, nil)
-     |> assign(:error, nil)}
+  def mount(_params, session, socket) do
+    tipo = session["tipo"] || "ciudadano"
+    username = session["username"] || "desconocido"
+
+    if tipo in ["coordinador", "administrador", "voluntario"] do
+      {:ok,
+       socket
+       |> assign(:albergues, Albergues.listar())
+       |> assign(:zonas, Zonas.listar())
+       |> assign(:recursos, Recursos.listar())
+       |> assign(:necesidades, Necesidades.listar_ordenadas())
+       |> assign(:albergue_expandido, nil)
+       |> assign(:username, username)
+       |> assign(:error, nil)}
+    else
+      {:ok, push_navigate(socket, to: "/dashboard")}
+    end
   end
 
   @impl true
@@ -35,6 +45,12 @@ defmodule EmergenciaWeb.AlberguesLive do
 
         case Albergues.registrar(albergue) do
           {:ok, _} ->
+            # <-- REGISTRO DE ACTIVIDAD
+            Usuarios.registrar_actividad(
+              socket.assigns.username,
+              "Registró el albergue #{codigo}"
+            )
+
             {:noreply,
              socket
              |> assign(:albergues, Albergues.listar())
@@ -52,6 +68,8 @@ defmodule EmergenciaWeb.AlberguesLive do
   def handle_event("eliminar", %{"codigo" => codigo}, socket) do
     case Albergues.eliminar(codigo) do
       :ok ->
+        # <-- REGISTRO DE ACTIVIDAD
+        Usuarios.registrar_actividad(socket.assigns.username, "Eliminó el albergue #{codigo}")
         {:noreply, assign(socket, albergues: Albergues.listar(), error: nil)}
 
       {:error, :albergue_ocupado} ->
@@ -77,6 +95,12 @@ defmodule EmergenciaWeb.AlberguesLive do
 
     case Albergues.ingresar_persona(codigo, documento) do
       {:ok, _} ->
+        # <-- REGISTRO DE ACTIVIDAD
+        Usuarios.registrar_actividad(
+          socket.assigns.username,
+          "Registró ingreso de #{documento} al albergue #{codigo}"
+        )
+
         {:noreply,
          socket
          |> assign(:albergues, Albergues.listar())
@@ -98,6 +122,12 @@ defmodule EmergenciaWeb.AlberguesLive do
 
     case Albergues.egresar_persona(codigo, documento) do
       {:ok, _} ->
+        # <-- REGISTRO DE ACTIVIDAD
+        Usuarios.registrar_actividad(
+          socket.assigns.username,
+          "Registró salida de #{documento} del albergue #{codigo}"
+        )
+
         {:noreply,
          socket
          |> assign(:albergues, Albergues.listar())
@@ -114,6 +144,12 @@ defmodule EmergenciaWeb.AlberguesLive do
   def handle_event("asociar_recurso", %{"codigo" => codigo, "recurso" => rec_codigo}, socket) do
     case Albergues.asociar_recurso(codigo, rec_codigo) do
       {:ok, _} ->
+        # <-- REGISTRO DE ACTIVIDAD
+        Usuarios.registrar_actividad(
+          socket.assigns.username,
+          "Asoció recurso #{rec_codigo} al albergue #{codigo}"
+        )
+
         {:noreply, assign(socket, :albergues, Albergues.listar())}
 
       {:error, :ya_asociado} ->
@@ -127,6 +163,12 @@ defmodule EmergenciaWeb.AlberguesLive do
   def handle_event("asociar_necesidad", %{"codigo" => codigo, "necesidad" => id_nec}, socket) do
     case Albergues.asociar_necesidad(codigo, id_nec) do
       {:ok, _} ->
+        # <-- REGISTRO DE ACTIVIDAD
+        Usuarios.registrar_actividad(
+          socket.assigns.username,
+          "Asoció necesidad #{id_nec} al albergue #{codigo}"
+        )
+
         {:noreply, assign(socket, :albergues, Albergues.listar())}
 
       {:error, :ya_asociado} ->
@@ -171,15 +213,13 @@ defmodule EmergenciaWeb.AlberguesLive do
               Ocupación Global del Sistema
             </p>
 
-            <!-- CÁLCULO DE PORCENTAJE GLOBAL EN ELIXIR -->
             <% total_capacidad = Enum.sum(Enum.map(@albergues, & &1.capacidad_maxima))
             total_ocupacion = Enum.sum(Enum.map(@albergues, & &1.ocupacion_actual))
 
             porcentaje_global =
-              if total_capacidad > 0, do: total_ocupacion / total_capacidad * 100, else: 0 %>
+              if total_capacidad > 0, do: total_ocupacion / total_capacidad * 100, else: 0.0 %>
 
             <div style="width: 100%; background-color: #ccc; border-radius: 4px; height: 20px;">
-              <!-- USO CORRECTO DE style={} CON INTERPOLACIÓN -->
               <div style={"width: #{porcentaje_global}%; background-color: #007bff; height: 20px; border-radius: 4px; text-align: center; color: white; font-size: 0.8rem; line-height: 20px;"}>
                 {Float.round(porcentaje_global, 1)}%
               </div>
@@ -267,7 +307,6 @@ defmodule EmergenciaWeb.AlberguesLive do
                   </td>
                 </tr>
 
-                <!-- FILA EXPANDIDA -->
                 <tr :if={@albergue_expandido == a.codigo}>
                   <td colspan="5" style="padding: 0; background-color: #ffffff;">
                     <div style="padding: 1rem; border-left: 4px solid #007bff; margin: 1rem; white-space: normal;">
@@ -308,7 +347,6 @@ defmodule EmergenciaWeb.AlberguesLive do
                         </form>
                       </div>
 
-                      <!-- COLOR DINÁMICO EN LA ETIQUETA -->
                       <% cupos = a.capacidad_maxima - a.ocupacion_actual %>
                       <p>
                         <strong>Cupos disponibles:</strong>
@@ -332,7 +370,6 @@ defmodule EmergenciaWeb.AlberguesLive do
 
                       <hr style="margin: 1.5rem 0;" />
 
-                      <!-- ASOCIACIÓN DE RECURSOS Y NECESIDADES -->
                       <h4 style="margin-top: 0; color: #555;">Recursos y Necesidades Asociadas</h4>
 
                       <div style="display: flex; gap: 2rem; margin-bottom: 1rem;">

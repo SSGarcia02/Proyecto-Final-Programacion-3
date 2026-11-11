@@ -28,8 +28,13 @@ defmodule EmergenciaWeb.SesionController do
   """
   def eliminar(conn, _params) do
     case get_session(conn, :username) do
-      nil -> :ok
-      username -> Usuarios.desconectar(username)
+      nil ->
+        :ok
+
+      username ->
+        # <-- NUEVO: REGISTRO DE ACTIVIDAD
+        Usuarios.registrar_actividad(username, "Cerró sesión en el sistema")
+        Usuarios.desconectar(username)
     end
 
     conn

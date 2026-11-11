@@ -5,18 +5,34 @@ defmodule EmergenciaWeb.NecesidadesLive do
   alias Emergencia.Necesidades.Necesidad
   alias Emergencia.Zonas
   alias Emergencia.Recursos
+  alias Emergencia.Usuarios
+  alias Emergencia.Personas
+  alias Emergencia.Albergues
 
   @impl true
-  def mount(_params, _session, socket) do
-    {:ok,
-     socket
-     |> assign(:necesidades, Necesidades.listar_ordenadas())
-     |> assign(:zonas, Zonas.listar())
-     |> assign(:recursos, Recursos.listar())
-     |> assign(:necesidad_expandida, nil)
-     |> assign(:necesidad_editando, nil)
-     |> assign(:tab_activa, "pendiente")
-     |> assign(:error, nil)}
+  def mount(_params, session, socket) do
+    tipo = session["tipo"] || "ciudadano"
+    username = session["username"] || "desconocido"
+
+    if tipo in ["coordinador", "administrador", "voluntario"] do
+      {:ok,
+       socket
+       |> assign(:necesidades, Necesidades.listar_ordenadas())
+       |> assign(:zonas, Zonas.listar())
+       |> assign(:recursos, Recursos.listar())
+       |> assign(:personas, Personas.listar_personas())
+       |> assign(:albergues, Albergues.listar())
+       |> assign(:necesidad_expandida, nil)
+       |> assign(:necesidad_editando, nil)
+       |> assign(:tab_activa, "pendiente")
+       |> assign(:username, username)
+       |> assign(:filtro_zona, "")
+       |> assign(:filtro_tipo, "")
+       |> assign(:filtro_prioridad, "")
+       |> assign(:error, nil)}
+    else
+      {:ok, push_navigate(socket, to: "/dashboard")}
+    end
   end
 
   @impl true
@@ -43,6 +59,12 @@ defmodule EmergenciaWeb.NecesidadesLive do
 
         case Necesidades.actualizar(necesidad_actualizada) do
           {:ok, _} ->
+            # <-- REGISTRO DE ACTIVIDAD
+            Usuarios.registrar_actividad(
+              socket.assigns.username,
+              "Actualizó la necesidad #{necesidad_vieja.id}"
+            )
+
             {:noreply,
              socket
              |> assign(:necesidades, Necesidades.listar_ordenadas())
@@ -56,18 +78,22 @@ defmodule EmergenciaWeb.NecesidadesLive do
         # CREACIÓN
         id = "N" <> Integer.to_string(System.unique_integer([:positive]))
 
-        necesidad = %Necesidad{
+                necesidad = %Necesidad{
           id: id,
           tipo: tipo,
           cantidad_requerida: cantidad,
           zona: params["zona"],
           prioridad: prioridad,
           descripcion: String.trim(params["descripcion"]),
-          responsable: "Coordinador"
+          responsable: socket.assigns.username,
+          asociado_a: params["asociado_a"]
         }
 
         case Necesidades.registrar(necesidad) do
           {:ok, _} ->
+            # <-- REGISTRO DE ACTIVIDAD
+            Usuarios.registrar_actividad(socket.assigns.username, "Registró la necesidad #{id}")
+
             {:noreply,
              socket
              |> assign(:necesidades, Necesidades.listar_ordenadas())
@@ -92,6 +118,12 @@ defmodule EmergenciaWeb.NecesidadesLive do
       {cantidad, ""} when cantidad > 0 ->
         case Necesidades.asignar_recurso(id, codigo, cantidad) do
           {:ok, _} ->
+            # <-- REGISTRO DE ACTIVIDAD
+            Usuarios.registrar_actividad(
+              socket.assigns.username,
+              "Asignó recurso #{codigo} a la necesidad #{id}"
+            )
+
             {:noreply,
              socket
              |> assign(:necesidades, Necesidades.listar_ordenadas())
@@ -144,9 +176,23 @@ defmodule EmergenciaWeb.NecesidadesLive do
     {:noreply, assign(socket, :tab_activa, estado)}
   end
 
+  def handle_event("filtrar", params, socket) do
+    {:noreply,
+     socket
+     |> assign(:filtro_zona, params["zona"] || "")
+     |> assign(:filtro_tipo, params["tipo"] || "")
+     |> assign(:filtro_prioridad, params["prioridad"] || "")}
+  end
+
   def handle_event("avanzar_estado", %{"id" => id, "estado" => nuevo_estado}, socket) do
     case Necesidades.cambiar_estado(id, nuevo_estado) do
       {:ok, _} ->
+        # <-- REGISTRO DE ACTIVIDAD
+        Usuarios.registrar_actividad(
+          socket.assigns.username,
+          "Cambió estado de necesidad #{id} a #{nuevo_estado}"
+        )
+
         {:noreply,
          socket
          |> assign(:necesidades, Necesidades.listar_ordenadas())
@@ -160,6 +206,9 @@ defmodule EmergenciaWeb.NecesidadesLive do
   def handle_event("cancelar", %{"id" => id}, socket) do
     case Necesidades.cambiar_estado(id, "cancelada") do
       {:ok, _} ->
+        # <-- REGISTRO DE ACTIVIDAD
+        Usuarios.registrar_actividad(socket.assigns.username, "Canceló la necesidad #{id}")
+
         {:noreply,
          socket
          |> assign(:necesidades, Necesidades.listar_ordenadas())
@@ -170,11 +219,16 @@ defmodule EmergenciaWeb.NecesidadesLive do
     end
   end
 
-  defp filtrar_por_estado(necesidades, tab) do
-    Enum.filter(necesidades, fn n -> n.estado == tab end)
+  defp filtrar_necesidades(necesidades, tab, zona, tipo, prioridad) do
+    Enum.filter(necesidades, fn n ->
+      n.estado == tab and
+        (zona == "" or n.zona == zona) and
+        (tipo == "" or Atom.to_string(n.tipo) == tipo) and
+        (prioridad == "" or Atom.to_string(n.prioridad) == prioridad)
+    end)
   end
 
-  @impl true
+   @impl true
   def render(assigns) do
     ~H"""
     <div class="zonas-container">
@@ -226,6 +280,7 @@ defmodule EmergenciaWeb.NecesidadesLive do
               <% end %>
             </select>
           </div>
+
           <div style="grid-column: span 2;">
             <label>Descripción:</label>
             <input
@@ -240,6 +295,35 @@ defmodule EmergenciaWeb.NecesidadesLive do
               required
             />
           </div>
+
+          <!-- SELECTOR DE ASOCIACIÓN -->
+          <div style="grid-column: span 2;">
+            <label>Asociada a (Persona o Albergue):</label>
+            <select name="asociado_a">
+              <option value="">Ninguna / General</option>
+
+              <optgroup label="Personas Registradas">
+                <%= for p <- @personas do %>
+                  <option value={"Persona: " <> p.documento} selected={
+                    if @necesidad_editando,
+                      do: (Enum.find(@necesidades, &(&1.id == @necesidad_editando)).asociado_a == "Persona: " <> p.documento),
+                      else: false
+                  }>Persona: {p.nombre} ({p.documento})</option>
+                <% end %>
+              </optgroup>
+
+              <optgroup label="Albergues">
+                <%= for a <- @albergues do %>
+                  <option value={"Albergue: " <> a.codigo} selected={
+                    if @necesidad_editando,
+                      do: (Enum.find(@necesidades, &(&1.id == @necesidad_editando)).asociado_a == "Albergue: " <> a.codigo),
+                      else: false
+                  }>Albergue: {a.nombre}</option>
+                <% end %>
+              </optgroup>
+            </select>
+          </div>
+
           <div style="grid-column: span 2; margin-top: 1rem; display: flex; gap: 1rem;">
             <button type="submit">{if @necesidad_editando,
               do: "Guardar Cambios",
@@ -273,6 +357,39 @@ defmodule EmergenciaWeb.NecesidadesLive do
           <% end %>
         </div>
 
+        <!-- BARRA DE FILTROS -->
+        <form phx-change="filtrar" style="display: flex; gap: 1rem; margin-bottom: 1rem; background: #f8f9fa; padding: 0.5rem; border-radius: 4px;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-weight: bold; font-size: 0.9rem;">Zona:</span>
+            <select name="zona" style="width: auto; padding: 0.2rem; margin: 0;">
+              <option value="">Todas</option>
+              <%= for z <- @zonas do %>
+                <option value={z.codigo} selected={@filtro_zona == z.codigo}>{z.nombre}</option>
+              <% end %>
+            </select>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-weight: bold; font-size: 0.9rem;">Tipo:</span>
+            <select name="tipo" style="width: auto; padding: 0.2rem; margin: 0;">
+              <option value="">Todos</option>
+              <%= for t <- Necesidad.tipos() do %>
+                <option value={t} selected={@filtro_tipo == Atom.to_string(t)}>{t}</option>
+              <% end %>
+            </select>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-weight: bold; font-size: 0.9rem;">Prioridad:</span>
+            <select name="prioridad" style="width: auto; padding: 0.2rem; margin: 0;">
+              <option value="">Todas</option>
+              <%= for p <- Necesidad.prioridades() do %>
+                <option value={p} selected={@filtro_prioridad == Atom.to_string(p)}>{p}</option>
+              <% end %>
+            </select>
+          </div>
+        </form>
+
         <div style="overflow-x: auto; width: 100%;">
           <table style="white-space: nowrap;">
             <thead>
@@ -286,7 +403,7 @@ defmodule EmergenciaWeb.NecesidadesLive do
               </tr>
             </thead>
             <tbody>
-              <%= for n <- filtrar_por_estado(@necesidades, @tab_activa) do %>
+              <%= for n <- filtrar_necesidades(@necesidades, @tab_activa, @filtro_zona, @filtro_tipo, @filtro_prioridad) do %>
                 <tr
                   phx-click="toggle_necesidad"
                   phx-value-id={n.id}
@@ -303,7 +420,6 @@ defmodule EmergenciaWeb.NecesidadesLive do
                   <td>{n.zona}</td>
                   <td>
                     <div phx-click="nada" style="display: flex; gap: 0.5rem; align-items: center;">
-                      <!-- FLUJO DE ESTADOS -->
                       <%= if n.estado == "pendiente" do %>
                         <form
                           phx-submit="asignar"
@@ -336,11 +452,9 @@ defmodule EmergenciaWeb.NecesidadesLive do
                           style="margin: 0;"
                         >Cancelar</button>
                       <% else %>
-                        <!-- Si ya está asignada o en atención, mostramos el recurso -->
                         <span style="color: green; font-weight: bold; margin-right: 0.5rem;">✓ {n.recurso_asignado ||
                           "Sin recurso"}</span>
 
-                        <!-- Botón para pasar de asignada a en_atencion -->
                         <%= if n.estado == "asignada" do %>
                           <button
                             phx-click="avanzar_estado"
@@ -351,7 +465,6 @@ defmodule EmergenciaWeb.NecesidadesLive do
                           >Poner en Atención</button>
                         <% end %>
 
-                        <!-- Botón para pasar de en_atencion a atendida -->
                         <%= if n.estado == "en_atencion" do %>
                           <button
                             phx-click="avanzar_estado"
@@ -362,7 +475,6 @@ defmodule EmergenciaWeb.NecesidadesLive do
                           >Marcar Atendida</button>
                         <% end %>
 
-                        <!-- Botón de cancelar para estados no finales -->
                         <%= if n.estado != "atendida" and n.estado != "cancelada" do %>
                           <button
                             phx-click="cancelar"
@@ -388,19 +500,20 @@ defmodule EmergenciaWeb.NecesidadesLive do
                       </p>
                       <p><strong>Descripción:</strong> {n.descripcion}</p>
                       <p><strong>Reportado por:</strong> {n.responsable}</p>
+                      <p :if={n.asociado_a}><strong>Asociada a:</strong> {n.asociado_a}</p>
                       <p><strong>Fecha:</strong> {n.fecha_creacion}</p>
                     </div>
                   </td>
                 </tr>
               <% end %>
 
-              <%= if Enum.empty?(filtrar_por_estado(@necesidades, @tab_activa)) do %>
+              <%= if Enum.empty?(filtrar_necesidades(@necesidades, @tab_activa, @filtro_zona, @filtro_tipo, @filtro_prioridad)) do %>
                 <tr>
                   <td
                     colspan="6"
                     style="text-align: center; padding: 2rem; color: #888; font-style: italic;"
                   >
-                    No hay necesidades en estado "{String.capitalize(@tab_activa)}".
+                    No hay necesidades que coincidan con los filtros en estado "{String.capitalize(@tab_activa)}".
                   </td>
                 </tr>
               <% end %>

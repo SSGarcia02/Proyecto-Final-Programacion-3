@@ -39,6 +39,10 @@ defmodule Emergencia.Recursos do
     GenServer.call(__MODULE__, {:actualizar, recurso})
   end
 
+  def transferir(codigo_origen, codigo_destino, cantidad) do
+    GenServer.call(__MODULE__, {:transferir, codigo_origen, codigo_destino, cantidad})
+  end
+
   # ---------- Callbacks ----------
 
   @impl true
@@ -127,5 +131,22 @@ defmodule Emergencia.Recursos do
     nuevos_recursos = Map.put(recursos_sin_viejo, recurso.codigo, recurso)
     Emergencia.Persistencia.guardar_recursos(nuevos_recursos)
     {:reply, {:ok, recurso}, nuevos_recursos}
+  end
+
+  def handle_call({:transferir, codigo_origen, codigo_destino, cantidad}, _from, recursos) do
+    with {:ok, origen} <- Map.fetch(recursos, codigo_origen),
+         {:ok, destino} <- Map.fetch(recursos, codigo_destino),
+         {:ok, origen_act, destino_act} <- Recurso.transferir(origen, destino, cantidad) do
+      nuevos_recursos =
+        recursos
+        |> Map.put(codigo_origen, origen_act)
+        |> Map.put(codigo_destino, destino_act)
+
+      Emergencia.Persistencia.guardar_recursos(nuevos_recursos)
+      {:reply, {:ok, origen_act, destino_act}, nuevos_recursos}
+    else
+      :error -> {:reply, {:error, :recurso_no_encontrado}, recursos}
+      {:error, motivo} -> {:reply, {:error, motivo}, recursos}
+    end
   end
 end

@@ -405,6 +405,7 @@ defmodule Emergencia.Persistencia do
     "prioridad",
     "descripcion",
     "responsable",
+    "asociado_a",
     "estado",
     "recurso_asignado",
     "fecha_creacion"
@@ -421,6 +422,7 @@ defmodule Emergencia.Persistencia do
       Atom.to_string(n.prioridad),
       n.descripcion,
       n.responsable,
+      n.asociado_a || "",
       n.estado,
       n.recurso_asignado || "",
       n.fecha_creacion || ""
@@ -435,6 +437,7 @@ defmodule Emergencia.Persistencia do
         prio_str,
         desc,
         resp,
+        asociado,
         estado,
         rec_asig,
         fecha
@@ -451,6 +454,7 @@ defmodule Emergencia.Persistencia do
          prioridad: prioridad,
          descripcion: desc,
          responsable: resp,
+         asociado_a: if(asociado == "", do: nil, else: asociado),
          estado: estado,
          recurso_asignado: if(rec_asig == "", do: nil, else: rec_asig),
          fecha_creacion: fecha
@@ -757,5 +761,42 @@ defmodule Emergencia.Persistencia do
   def guardar_mascotas(mascotas) when is_map(mascotas) do
     filas = Enum.map(mascotas, fn {_id, m} -> mascota_a_fila(m) end)
     escribir_filas("mascotas.csv", @encabezado_mascotas, filas, "|")
+  end
+
+  # ---------- Conversión de Actividad <-> fila CSV ----------
+
+  @encabezado_actividad ["fecha", "username", "accion"]
+
+  def encabezado_actividad, do: @encabezado_actividad
+
+  def actividad_a_fila(actividad) do
+    [actividad.fecha, actividad.username, actividad.accion]
+  end
+
+  def leer_actividad do
+    with {:ok, filas} <- leer_filas("actividad.csv", "|") do
+      actividades =
+        filas
+        |> Enum.map(fn [fecha, username, accion] ->
+          %{fecha: fecha, username: username, accion: accion}
+        end)
+
+      {:ok, actividades}
+    end
+  end
+
+  def registrar_actividad(username, accion) do
+    fecha = DateTime.utc_now() |> DateTime.to_string()
+    nueva_actividad = %{fecha: fecha, username: username, accion: accion}
+
+    # Leemos lo que hay, agregamos la nueva y guardamos
+    case leer_actividad() do
+      {:ok, actividades} ->
+        filas = Enum.map([nueva_actividad | actividades], &actividad_a_fila/1)
+        escribir_filas("actividad.csv", @encabezado_actividad, filas, "|")
+
+      _ ->
+        :ok
+    end
   end
 end

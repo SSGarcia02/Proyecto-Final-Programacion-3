@@ -10,3 +10,13 @@ N6790|agua|1|Z001|critica|eeeee|Coordinador|atendida|R004 (1)|2026-11-08 18:10:4
 N6914|agua|10|Z005|baja|Agua para 20 personas|Coordinador|atendida|R004 (10)|2026-11-08 17:42:47.491000Z
 N7043|agua|1|Z001|critica|zzz|Coordinador|cancelada||2026-11-08 18:04:23.133000Z
 N7620|medicamentos|20|Z001|critica|Medcina general|Coordinador|atendida|R006 (20)|2026-11-08 01:22:26.354000Z
+N8001|agua|50|Z001|alta|Falta agua potable en el refugio temporal|Coordinador|atendida|R001 (50)|2026-11-09 08:00:00.000000Z
+N8002|alimentos|100|Z002|critica|Se requieren raciones de comida para familias|Coordinador|asignada|R008 (100)|2026-11-09 08:05:00.000000Z
+N8003|primeros_auxilios|15|Z003|media|Botiquines para brigadistas|Coordinador|pendiente||2026-11-09 08:10:00.000000Z
+N8004|medicamentos|30|Z004|alta|Insumos para pacientes crónicos|Coordinador|pendiente||2026-11-09 08:15:00.000000Z
+N8005|refugio|10|Z005|critica|Faltan carpas para damnificados|Coordinador|pendiente||2026-11-09 08:20:00.000000Z
+N8006|transporte|2|Z001|media|Se necesita vehículo para traslado de heridos|Coordinador|pendiente||2026-11-09 08:25:00.000000Z
+N8007|rescate|5|Z002|critica|Personas atrapadas en escombros|Coordinador|en_atencion|R010 (5)|2026-11-09 08:30:00.000000Z
+N8008|agua|200|Z003|alta|Agua para punto de hidratación|Coordinador|pendiente||2026-11-09 08:35:00.000000Z
+N8009|alimentos|50|Z004|baja|Alimentos no perecederos para reserva|Coordinador|pendiente||2026-11-09 08:40:00.000000Z
+N8010|medicamentos|10|Z005|media|Analgésicos y antibióticos básicos|Coordinador|pendiente||2026-11-09 08:45:00.000000Z

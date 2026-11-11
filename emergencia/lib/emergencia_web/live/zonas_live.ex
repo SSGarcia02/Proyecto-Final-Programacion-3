@@ -3,26 +3,42 @@ defmodule EmergenciaWeb.ZonasLive do
 
   alias Emergencia.Zonas
   alias Emergencia.Zonas.{Zona, Sector, Punto}
+  alias Emergencia.Usuarios
+  alias Emergencia.Albergues
+  alias Emergencia.Necesidades
+  alias Emergencia.Recursos
+  alias Emergencia.Personas
+  alias Emergencia.Mascotas
 
   @impl true
-  def mount(_params, _session, socket) do
-    {:ok,
-     socket
-     |> assign(:zonas, Zonas.listar())
-     |> assign(:error, nil)
-     |> assign(:zona_editando, nil)
-     # <-- Controla qué zona está abierta
-     |> assign(:zona_expandida, nil)}
+  def mount(_params, session, socket) do
+    tipo = session["tipo"] || "ciudadano"
+    username = session["username"] || "desconocido"
+
+    if tipo in ["coordinador", "administrador"] do
+      {:ok,
+       socket
+       |> assign(:zonas, Zonas.listar())
+       |> assign(:username, username)
+       |> assign(:albergues, Albergues.listar())
+       |> assign(:necesidades, Necesidades.listar_ordenadas())
+       |> assign(:recursos, Recursos.listar())
+       |> assign(:personas, Personas.listar_personas())
+       |> assign(:mascotas, Mascotas.listar())
+       |> assign(:error, nil)
+       |> assign(:zona_editando, nil)
+       |> assign(:zona_expandida, nil)}
+    else
+      {:ok, push_navigate(socket, to: "/dashboard")}
+    end
   end
 
   # ---------- EVENTOS DE EXPANDIR / COLAPSAR ----------
   @impl true
   def handle_event("toggle_zona", %{"codigo" => codigo}, socket) do
     if socket.assigns.zona_expandida == codigo do
-      # Cerrar si ya estaba abierta
       {:noreply, assign(socket, :zona_expandida, nil)}
     else
-      # Abrir
       {:noreply, assign(socket, :zona_expandida, codigo)}
     end
   end
@@ -40,6 +56,7 @@ defmodule EmergenciaWeb.ZonasLive do
   # ---------- EVENTOS DE ELIMINAR ----------
   def handle_event("eliminar", %{"codigo" => codigo}, socket) do
     Zonas.eliminar(codigo)
+    Usuarios.registrar_actividad(socket.assigns.username, "Eliminó la zona #{codigo}")
 
     {:noreply,
      socket
@@ -80,7 +97,6 @@ defmodule EmergenciaWeb.ZonasLive do
           # EDICIÓN
           case Enum.find(socket.assigns.zonas, &(&1.codigo == socket.assigns.zona_editando)) do
             nil ->
-              # Si por alguna razón la zona vieja ya no existe, la tratamos como nueva
               zona_nueva = %Zona{
                 codigo: codigo,
                 nombre: nombre,
@@ -123,6 +139,12 @@ defmodule EmergenciaWeb.ZonasLive do
 
       case resultado do
         {:ok, _} ->
+          # CORREGIDO: usamos la variable `codigo` que sí existe en este scope
+          Usuarios.registrar_actividad(
+            socket.assigns.username,
+            "Registró/Actualizó la zona #{codigo}"
+          )
+
           {:noreply,
            socket
            |> assign(:zonas, Zonas.listar())
@@ -175,7 +197,6 @@ defmodule EmergenciaWeb.ZonasLive do
             </div>
           </div>
 
-          <!-- BLOQUE DE NIVEL DE AFECTACIÓN CORREGIDO -->
           <div style="margin-top: 1rem;">
             <label>Nivel de afectación:</label>
             <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
@@ -196,7 +217,6 @@ defmodule EmergenciaWeb.ZonasLive do
             </h3>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
-              <!-- Sector -->
               <div>
                 <label>Nombre del Sector:</label>
                 <input
@@ -216,7 +236,6 @@ defmodule EmergenciaWeb.ZonasLive do
                 />
               </div>
 
-              <!-- Punto -->
               <div>
                 <label>Nombre del Punto:</label>
                 <input
@@ -242,7 +261,6 @@ defmodule EmergenciaWeb.ZonasLive do
                 />
               </div>
 
-              <!-- Personas -->
               <div>
                 <label>Personas Afectadas:</label>
                 <input
@@ -298,7 +316,6 @@ defmodule EmergenciaWeb.ZonasLive do
           </thead>
           <tbody>
             <%= for zona <- @zonas do %>
-              <!-- FILA PRINCIPAL -->
               <tr
                 phx-click="toggle_zona"
                 phx-value-codigo={zona.codigo}
@@ -327,7 +344,6 @@ defmodule EmergenciaWeb.ZonasLive do
                 </td>
               </tr>
 
-              <!-- FILA EXPANDIDA -->
               <tr :if={@zona_expandida == zona.codigo}>
                 <td colspan="5" style="padding: 0; background-color: #ffffff;">
                   <div style="padding: 1rem; border-left: 4px solid #007bff; margin: 1rem;">
@@ -357,6 +373,61 @@ defmodule EmergenciaWeb.ZonasLive do
                         </tbody>
                       </table>
                     <% end %>
+
+                    <hr style="margin: 1.5rem 0;" />
+                    <h4 style="margin-top: 0; color: #555;">Asociaciones de la Zona</h4>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                      <!-- ALBERGUES -->
+                      <div>
+                        <strong>Albergues:</strong>
+                        <ul style="padding-left: 1.5rem; font-size: 0.9rem;">
+                          <%= for a <- Enum.filter(@albergues, &(&1.zona == zona.codigo)) do %>
+                            <li>{a.nombre} ({a.ocupacion_actual}/{a.capacidad_maxima})</li>
+                          <% end %>
+                        </ul>
+                      </div>
+
+                      <!-- NECESIDADES -->
+                      <div>
+                        <strong>Necesidades:</strong>
+                        <ul style="padding-left: 1.5rem; font-size: 0.9rem;">
+                          <%= for n <- Enum.filter(@necesidades, &(&1.zona == zona.codigo)) do %>
+                            <li>{n.tipo} ({n.cantidad_requerida}) - {n.estado}</li>
+                          <% end %>
+                        </ul>
+                      </div>
+
+                      <!-- RECURSOS -->
+                      <div>
+                        <strong>Recursos:</strong>
+                        <ul style="padding-left: 1.5rem; font-size: 0.9rem;">
+                          <%= for r <- Enum.filter(@recursos, &(&1.ubicacion == zona.codigo)) do %>
+                            <li>{r.nombre} ({r.cantidad} {r.unidad})</li>
+                          <% end %>
+                        </ul>
+                      </div>
+
+                      <!-- PERSONAS -->
+                      <div>
+                        <strong>Personas Reportadas:</strong>
+                        <ul style="padding-left: 1.5rem; font-size: 0.9rem;">
+                          <%= for p <- Enum.filter(@personas, &(&1.zona == zona.codigo)) do %>
+                            <li>{p.nombre} ({p.estado})</li>
+                          <% end %>
+                        </ul>
+                      </div>
+
+                      <!-- MASCOTAS -->
+                      <div>
+                        <strong>Mascotas Reportadas:</strong>
+                        <ul style="padding-left: 1.5rem; font-size: 0.9rem;">
+                          <%= for m <- Enum.filter(@mascotas, &(&1.zona == zona.codigo)) do %>
+                            <li>{m.especie} ({m.tipo_reporte})</li>
+                          <% end %>
+                        </ul>
+                      </div>
+                    </div>
                   </div>
                 </td>
               </tr>

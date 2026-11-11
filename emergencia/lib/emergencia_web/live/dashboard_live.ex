@@ -141,31 +141,45 @@ defmodule EmergenciaWeb.DashboardLive do
       <h3 style="color: #333; margin-bottom: 1rem;">Acceso a Módulos</h3>
 
       <div class="dashboard-grid">
-        <a href="/zonas" class="dashboard-card">
-          <h3>Gestión de Zonas</h3>
-          <p>Registra sectores, puntos de atención y niveles de afectación.</p>
-        </a>
+        <!-- Zonas: Solo coordinadores y administradores -->
+        <%= if @tipo == "coordinador" or @tipo == "administrador" do %>
+          <a href="/zonas" class="dashboard-card">
+            <h3>Gestión de Zonas</h3>
+            <p>Registra sectores, puntos de atención y niveles de afectación.</p>
+          </a>
+        <% end %>
 
-        <a href="/recursos" class="dashboard-card">
-          <h3>Inventario de Recursos</h3>
-          <p>Controla suministros, entradas y salidas de los centros de acopio.</p>
-        </a>
+        <!-- Recursos: Coordinadores, administradores y voluntarios -->
+        <%= if @tipo in ["coordinador", "administrador", "voluntario"] do %>
+          <a href="/recursos" class="dashboard-card">
+            <h3>Inventario de Recursos</h3>
+            <p>Controla suministros, entradas y salidas de los centros de acopio.</p>
+          </a>
+        <% end %>
 
-        <a href="/necesidades" class="dashboard-card">
-          <h3>Gestión de Necesidades</h3>
-          <p>Administra solicitudes de ayuda y asígnalas a recursos disponibles.</p>
-        </a>
+        <!-- Necesidades: Coordinadores, administradores y voluntarios -->
+        <%= if @tipo in ["coordinador", "administrador", "voluntario"] do %>
+          <a href="/necesidades" class="dashboard-card">
+            <h3>Gestión de Necesidades</h3>
+            <p>Administra solicitudes de ayuda y asígnalas a recursos disponibles.</p>
+          </a>
+        <% end %>
 
-        <a href="/albergues" class="dashboard-card">
-          <h3>Gestión de Albergues</h3>
-          <p>Controla cupos, capacidad máxima y personas alojadas.</p>
-        </a>
+        <!-- Albergues: Coordinadores, administradores y voluntarios -->
+        <%= if @tipo in ["coordinador", "administrador", "voluntario"] do %>
+          <a href="/albergues" class="dashboard-card">
+            <h3>Gestión de Albergues</h3>
+            <p>Controla cupos, capacidad máxima y personas alojadas.</p>
+          </a>
+        <% end %>
 
+        <!-- Personas y Mensajes: TODOS pueden verlo (ciudadanos también) -->
         <a href="/personas" class="dashboard-card">
           <h3>Personas y Mensajes</h3>
           <p>Busca damnificados y permite la comunicación entre familiares.</p>
         </a>
 
+        <!-- Mascotas: TODOS pueden verlo -->
         <a href="/mascotas" class="dashboard-card">
           <h3>Mascotas</h3>
           <p>Reportes de mascotas perdidas y encontradas con algoritmo de coincidencia.</p>

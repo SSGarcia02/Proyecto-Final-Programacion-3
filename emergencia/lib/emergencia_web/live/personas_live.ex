@@ -14,19 +14,37 @@ defmodule EmergenciaWeb.PersonasLive do
      |> assign(:persona_expandida, nil)
      |> assign(:mensajes_actuales, [])
      |> assign(:busqueda, "")
+     |> assign(:filtro_zona, "")
+     |> assign(:filtro_estado, "")
      |> assign(:error, nil)}
   end
 
-  def handle_event("buscar", %{"busqueda" => termino}, socket) do
-    # Filtramos por documento o nombre (sin importar mayúsculas)
+  @impl true
+  def handle_event("filtrar", params, socket) do
+    busqueda = params["busqueda"] || ""
+    zona = params["zona"] || ""
+    estado = params["estado"] || ""
+
     filtradas =
       Personas.listar_personas()
       |> Enum.filter(fn p ->
-        String.contains?(String.downcase(p.documento), String.downcase(termino)) or
-          String.contains?(String.downcase(p.nombre), String.downcase(termino))
+        match_texto =
+          busqueda == "" or
+            String.contains?(String.downcase(p.documento), String.downcase(busqueda)) or
+            String.contains?(String.downcase(p.nombre), String.downcase(busqueda))
+
+        match_zona = zona == "" or p.zona == zona
+        match_estado = estado == "" or p.estado == estado
+
+        match_texto and match_zona and match_estado
       end)
 
-    {:noreply, assign(socket, personas: filtradas, busqueda: termino)}
+    {:noreply,
+     socket
+     |> assign(:personas, filtradas)
+     |> assign(:busqueda, busqueda)
+     |> assign(:filtro_zona, zona)
+     |> assign(:filtro_estado, estado)}
   end
 
   def handle_event("marcar_leido", %{"id" => id, "documento" => doc}, socket) do
@@ -82,7 +100,6 @@ defmodule EmergenciaWeb.PersonasLive do
     if socket.assigns.persona_expandida == documento do
       {:noreply, assign(socket, :persona_expandida, nil)}
     else
-      # Cargamos los mensajes de esa persona
       mensajes = Personas.listar_mensajes(documento)
 
       {:noreply,
@@ -163,18 +180,39 @@ defmodule EmergenciaWeb.PersonasLive do
         </form>
       </div>
 
-      <!-- FILTRO DE BÚSQUEDA -->
+      <!-- FILTROS DE BÚSQUEDA -->
       <div class="form-section">
-        <form phx-change="buscar" style="display: flex; gap: 1rem; align-items: center;">
-          <label style="margin: 0; white-space: nowrap;">Buscar por Nombre o Documento:</label>
-          <input
-            type="text"
-            name="busqueda"
-            value={@busqueda}
-            placeholder="Escribe para buscar..."
-            style="flex: 1;"
-            phx-debounce="300"
-          />
+        <form phx-change="filtrar" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <label style="margin: 0; white-space: nowrap; font-weight: bold;">Buscar:</label>
+            <input
+              type="text"
+              name="busqueda"
+              value={@busqueda}
+              placeholder="Nombre o documento..."
+              phx-debounce="300"
+            />
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <label style="margin: 0; white-space: nowrap; font-weight: bold;">Zona:</label>
+            <select name="zona" style="width: auto; margin: 0;">
+              <option value="">Todas</option>
+              <%= for z <- @zonas do %>
+                <option value={z.codigo} selected={@filtro_zona == z.codigo}>{z.nombre}</option>
+              <% end %>
+            </select>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <label style="margin: 0; white-space: nowrap; font-weight: bold;">Estado:</label>
+            <select name="estado" style="width: auto; margin: 0;">
+              <option value="">Todos</option>
+              <%= for est <- Persona.estados() do %>
+                <option value={est} selected={@filtro_estado == est}>{String.capitalize(String.replace(est, "_", " "))}</option>
+              <% end %>
+            </select>
+          </div>
         </form>
       </div>
 

@@ -147,7 +147,7 @@ defmodule Emergencia.Usuarios do
   end
 
   def handle_cast({:actividad, username, actividad}, usuarios) do
-    IO.inspect({username, actividad}, label: "[actividad]")
+    Emergencia.Persistencia.registrar_actividad(username, actividad)
     {:noreply, usuarios}
   end
 
