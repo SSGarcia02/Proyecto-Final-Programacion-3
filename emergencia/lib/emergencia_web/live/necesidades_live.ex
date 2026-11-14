@@ -78,7 +78,7 @@ defmodule EmergenciaWeb.NecesidadesLive do
         # CREACIÓN
         id = "N" <> Integer.to_string(System.unique_integer([:positive]))
 
-                necesidad = %Necesidad{
+        necesidad = %Necesidad{
           id: id,
           tipo: tipo,
           cantidad_requerida: cantidad,
@@ -228,7 +228,7 @@ defmodule EmergenciaWeb.NecesidadesLive do
     end)
   end
 
-   @impl true
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="zonas-container">
@@ -304,21 +304,35 @@ defmodule EmergenciaWeb.NecesidadesLive do
 
               <optgroup label="Personas Registradas">
                 <%= for p <- @personas do %>
-                  <option value={"Persona: " <> p.documento} selected={
-                    if @necesidad_editando,
-                      do: (Enum.find(@necesidades, &(&1.id == @necesidad_editando)).asociado_a == "Persona: " <> p.documento),
-                      else: false
-                  }>Persona: {p.nombre} ({p.documento})</option>
+                  <option
+                    value={"Persona: " <> p.documento}
+                    selected={
+                      if @necesidad_editando,
+                        do:
+                          Enum.find(@necesidades, &(&1.id == @necesidad_editando)).asociado_a ==
+                            "Persona: " <> p.documento,
+                        else: false
+                    }
+                  >
+                    Persona: {p.nombre} ({p.documento})
+                  </option>
                 <% end %>
               </optgroup>
 
               <optgroup label="Albergues">
                 <%= for a <- @albergues do %>
-                  <option value={"Albergue: " <> a.codigo} selected={
-                    if @necesidad_editando,
-                      do: (Enum.find(@necesidades, &(&1.id == @necesidad_editando)).asociado_a == "Albergue: " <> a.codigo),
-                      else: false
-                  }>Albergue: {a.nombre}</option>
+                  <option
+                    value={"Albergue: " <> a.codigo}
+                    selected={
+                      if @necesidad_editando,
+                        do:
+                          Enum.find(@necesidades, &(&1.id == @necesidad_editando)).asociado_a ==
+                            "Albergue: " <> a.codigo,
+                        else: false
+                    }
+                  >
+                    Albergue: {a.nombre}
+                  </option>
                 <% end %>
               </optgroup>
             </select>
@@ -358,7 +372,10 @@ defmodule EmergenciaWeb.NecesidadesLive do
         </div>
 
         <!-- BARRA DE FILTROS -->
-        <form phx-change="filtrar" style="display: flex; gap: 1rem; margin-bottom: 1rem; background: #f8f9fa; padding: 0.5rem; border-radius: 4px;">
+        <form
+          phx-change="filtrar"
+          style="display: flex; gap: 1rem; margin-bottom: 1rem; background: #f8f9fa; padding: 0.5rem; border-radius: 4px;"
+        >
           <div style="display: flex; align-items: center; gap: 0.5rem;">
             <span style="font-weight: bold; font-size: 0.9rem;">Zona:</span>
             <select name="zona" style="width: auto; padding: 0.2rem; margin: 0;">
@@ -513,7 +530,9 @@ defmodule EmergenciaWeb.NecesidadesLive do
                     colspan="6"
                     style="text-align: center; padding: 2rem; color: #888; font-style: italic;"
                   >
-                    No hay necesidades que coincidan con los filtros en estado "{String.capitalize(@tab_activa)}".
+                    No hay necesidades que coincidan con los filtros en estado "{String.capitalize(
+                      @tab_activa
+                    )}".
                   </td>
                 </tr>
               <% end %>

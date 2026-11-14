@@ -40,6 +40,9 @@ defmodule EmergenciaWeb.MascotasLive do
          |> assign(:mascotas, Mascotas.listar())
          |> assign(:error, nil)}
 
+      {:error, :tipo_reporte_invalido} ->
+        {:noreply, assign(socket, :error, "El tipo de reporte no es válido.")}
+
       {:error, motivo} ->
         {:noreply, assign(socket, :error, "Error: #{motivo}")}
     end
@@ -72,6 +75,9 @@ defmodule EmergenciaWeb.MascotasLive do
          |> assign(:mascota_expandida, nil)
          |> assign(:coincidencias, [])
          |> assign(:error, nil)}
+
+      {:error, :ya_resuelta} ->
+        {:noreply, assign(socket, :error, "Uno de los reportes ya estaba resuelto previamente.")}
 
       _ ->
         {:noreply, assign(socket, :error, "Error al resolver la coincidencia.")}

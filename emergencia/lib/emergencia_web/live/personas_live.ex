@@ -182,7 +182,10 @@ defmodule EmergenciaWeb.PersonasLive do
 
       <!-- FILTROS DE BÚSQUEDA -->
       <div class="form-section">
-        <form phx-change="filtrar" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+        <form
+          phx-change="filtrar"
+          style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;"
+        >
           <div style="display: flex; align-items: center; gap: 0.5rem;">
             <label style="margin: 0; white-space: nowrap; font-weight: bold;">Buscar:</label>
             <input
@@ -209,7 +212,9 @@ defmodule EmergenciaWeb.PersonasLive do
             <select name="estado" style="width: auto; margin: 0;">
               <option value="">Todos</option>
               <%= for est <- Persona.estados() do %>
-                <option value={est} selected={@filtro_estado == est}>{String.capitalize(String.replace(est, "_", " "))}</option>
+                <option value={est} selected={@filtro_estado == est}>
+                  {String.capitalize(String.replace(est, "_", " "))}
+                </option>
               <% end %>
             </select>
           </div>

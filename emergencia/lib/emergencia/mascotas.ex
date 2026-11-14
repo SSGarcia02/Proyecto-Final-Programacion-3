@@ -33,10 +33,14 @@ defmodule Emergencia.Mascotas do
     if Map.has_key?(mascotas, mascota.id) do
       {:reply, {:error, :id_duplicado}, mascotas}
     else
-      # Al registrar, buscamos si ya hay una posible coincidencia inmediata
-      nuevas_mascotas = Map.put(mascotas, mascota.id, mascota)
-      Emergencia.Persistencia.guardar_mascotas(nuevas_mascotas)
-      {:reply, {:ok, mascota}, nuevas_mascotas}
+      # Validación del tipo de reporte
+      if mascota.tipo_reporte in Mascota.tipos() do
+        nuevas_mascotas = Map.put(mascotas, mascota.id, mascota)
+        Emergencia.Persistencia.guardar_mascotas(nuevas_mascotas)
+        {:reply, {:ok, mascota}, nuevas_mascotas}
+      else
+        {:reply, {:error, :tipo_reporte_invalido}, mascotas}
+      end
     end
   end
 
@@ -81,18 +85,24 @@ defmodule Emergencia.Mascotas do
   def handle_call({:resolver_coincidencia, id1, id2}, _from, mascotas) do
     with {:ok, m1} <- Map.fetch(mascotas, id1),
          {:ok, m2} <- Map.fetch(mascotas, id2) do
-      # Marcamos ambos como resueltos y los vinculamos
-      m1_act = %{m1 | estado: "resuelta", reporte_vinculado: id2}
-      m2_act = %{m2 | estado: "resuelta", reporte_vinculado: id1}
+      cond do
+        m1.estado == "resuelta" or m2.estado == "resuelta" ->
+          {:reply, {:error, :ya_resuelta}, mascotas}
 
-      nuevas_mascotas =
-        mascotas
-        |> Map.put(id1, m1_act)
-        |> Map.put(id2, m2_act)
+        true ->
+          # Marcamos ambos como resueltos y los vinculamos
+          m1_act = %{m1 | estado: "resuelta", reporte_vinculado: id2}
+          m2_act = %{m2 | estado: "resuelta", reporte_vinculado: id1}
 
-      Emergencia.Persistencia.guardar_mascotas(nuevas_mascotas)
+          nuevas_mascotas =
+            mascotas
+            |> Map.put(id1, m1_act)
+            |> Map.put(id2, m2_act)
 
-      {:reply, {:ok, m1_act, m2_act}, nuevas_mascotas}
+          Emergencia.Persistencia.guardar_mascotas(nuevas_mascotas)
+
+          {:reply, {:ok, m1_act, m2_act}, nuevas_mascotas}
+      end
     else
       _ -> {:reply, {:error, :no_encontradas}, mascotas}
     end
