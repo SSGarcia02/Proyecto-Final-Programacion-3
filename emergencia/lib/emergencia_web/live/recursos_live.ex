@@ -168,6 +168,14 @@ defmodule EmergenciaWeb.RecursosLive do
              |> assign(:recursos, Recursos.listar())
              |> assign(:error, nil)}
 
+          {:error, :mismo_recurso} ->
+            {:noreply,
+             assign(
+               socket,
+               :error,
+               "No puedes transferir un recurso a sí mismo. Selecciona un destino diferente."
+             )}
+
           {:error, :categoria_incompatible} ->
             {:noreply,
              assign(socket, :error, "No se pueden transferir recursos de diferentes categorías.")}

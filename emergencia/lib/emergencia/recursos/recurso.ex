@@ -82,6 +82,9 @@ defmodule Emergencia.Recursos.Recurso do
   def transferir(%__MODULE__{} = origen, %__MODULE__{} = destino, cantidad)
       when is_integer(cantidad) and cantidad > 0 do
     cond do
+      origen.codigo == destino.codigo ->
+        {:error, :mismo_recurso}
+
       origen.categoria != destino.categoria ->
         {:error, :categoria_incompatible}
 
