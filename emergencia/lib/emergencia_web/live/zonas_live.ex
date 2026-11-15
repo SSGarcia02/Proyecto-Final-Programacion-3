@@ -26,8 +26,6 @@ defmodule EmergenciaWeb.ZonasLive do
   @doc """
   Inicializa la vista cargando las zonas y las asociaciones (albergues,
   necesidades, recursos, personas y mascotas).
-
-  Verifica que el usuario tenga el rol adecuado (coordinador o administrador).
   """
   @impl true
   def mount(_params, session, socket) do
@@ -54,12 +52,6 @@ defmodule EmergenciaWeb.ZonasLive do
 
   @doc """
   Maneja los eventos de la LiveView.
-
-  - `"toggle_zona"`: Expande/colapsa el detalle de una zona.
-  - `"editar"`: Carga una zona en el formulario de edición.
-  - `"cancelar_edicion"`: Cancela la edición.
-  - `"eliminar"`: Elimina una zona.
-  - `"registrar"`: Crea o actualiza una zona (con su sector/punto).
   """
   @impl true
   def handle_event("toggle_zona", %{"codigo" => codigo}, socket) do
@@ -70,17 +62,14 @@ defmodule EmergenciaWeb.ZonasLive do
     end
   end
 
-  # Carga una zona en el formulario de edición.
   def handle_event("editar", %{"codigo" => codigo}, socket) do
     {:noreply, assign(socket, :zona_editando, codigo)}
   end
 
-  # Cancela la edición.
   def handle_event("cancelar_edicion", _, socket) do
     {:noreply, assign(socket, :zona_editando, nil)}
   end
 
-  # Elimina una zona.
   def handle_event("eliminar", %{"codigo" => codigo}, socket) do
     Zonas.eliminar(codigo)
     Usuarios.registrar_actividad(socket.assigns.username, "Eliminó la zona #{codigo}")
@@ -93,7 +82,6 @@ defmodule EmergenciaWeb.ZonasLive do
      |> assign(:zona_expandida, nil)}
   end
 
-  # Registra o actualiza una zona con su sector/punto.
   def handle_event("registrar", params, socket) do
     codigo = String.trim(params["codigo"])
     nombre = String.trim(params["nombre"])
@@ -186,7 +174,19 @@ defmodule EmergenciaWeb.ZonasLive do
     end
   end
 
-  @impl true
+  defp calcular_personas_reales(codigo_zona, personas, albergues) do
+    personas_en_zona = Enum.count(personas, &(&1.zona == codigo_zona))
+
+    personas_en_albergues =
+      albergues
+      |> Enum.filter(&(&1.zona == codigo_zona))
+      |> Enum.map(& &1.ocupacion_actual)
+      |> Enum.sum()
+
+    personas_en_zona + personas_en_albergues
+  end
+
+   @impl true
   def render(assigns) do
     ~H"""
     <div class="zonas-container">
@@ -240,7 +240,7 @@ defmodule EmergenciaWeb.ZonasLive do
                 else: "Agregar Sector y Punto (Opcional)"}
             </h3>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
               <div>
                 <label>Nombre del Sector:</label>
                 <input
@@ -284,33 +284,6 @@ defmodule EmergenciaWeb.ZonasLive do
                   placeholder="Ej. Escuela"
                 />
               </div>
-
-              <div>
-                <label>Personas Afectadas:</label>
-                <input
-                  type="number"
-                  name="punto_personas"
-                  value={
-                    if @zona_editando do
-                      zona = Enum.find(@zonas, &(&1.codigo == @zona_editando))
-
-                      case zona.sectores do
-                        [s | _] ->
-                          case s.puntos do
-                            [p | _] -> p.personas_afectadas
-                            _ -> 0
-                          end
-
-                        _ ->
-                          0
-                      end
-                    else
-                      0
-                    end
-                  }
-                  min="0"
-                />
-              </div>
             </div>
           </div>
 
@@ -334,7 +307,7 @@ defmodule EmergenciaWeb.ZonasLive do
               <th>Código</th>
               <th>Nombre</th>
               <th>Nivel</th>
-              <th>Personas (Recursivo)</th>
+              <th>Personas Registradas</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -350,7 +323,11 @@ defmodule EmergenciaWeb.ZonasLive do
                 </td>
                 <td>{zona.nombre}</td>
                 <td>{zona.nivel}</td>
-                <td><strong>{zona.personas_afectadas}</strong></td>
+                <td>
+                  <strong style="color: #28a745;">
+                    {calcular_personas_reales(zona.codigo, @personas, @albergues)}
+                  </strong>
+                </td>
                 <td>
                   <div phx-click="nada">
                     <button
@@ -383,7 +360,6 @@ defmodule EmergenciaWeb.ZonasLive do
                           <tr>
                             <th>Sector</th>
                             <th>Punto de Atención</th>
-                            <th>Personas Afectadas</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -391,7 +367,6 @@ defmodule EmergenciaWeb.ZonasLive do
                             <tr>
                               <td>{sector.nombre}</td>
                               <td>{punto.nombre}</td>
-                              <td>{punto.personas_afectadas}</td>
                             </tr>
                           <% end %>
                         </tbody>

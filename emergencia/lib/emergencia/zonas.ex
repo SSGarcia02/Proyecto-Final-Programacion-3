@@ -82,12 +82,12 @@ defmodule Emergencia.Zonas do
     if Map.has_key?(zonas, zona.codigo) do
       {:reply, {:error, :zona_ya_existe}, zonas}
     else
-      # Calculamos el total de personas afectadas antes de guardar
+      # Calculamos el total recursivamente con los puntos (que estarán en 0)
+      # y guardamos la zona. La recursividad se sigue usando para demostrar el concepto.
       zona_actualizada = %{zona | personas_afectadas: Zona.calcular_total_personas(zona)}
       nuevas_zonas = Map.put(zonas, zona.codigo, zona_actualizada)
 
       Emergencia.Persistencia.guardar_zonas(nuevas_zonas)
-
       {:reply, {:ok, zona_actualizada}, nuevas_zonas}
     end
   end

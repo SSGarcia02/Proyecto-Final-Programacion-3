@@ -19,7 +19,7 @@
 @plugin "daisyui/packages/bundle/daisyui-theme" {
   name: "dark";
   default: false;
-  prefersdark: true;
+  prefersdark: false;
   color-scheme: "dark";
   --color-base-100: oklch(30.33% 0.016 252.42);
   --color-base-200: oklch(25.26% 0.014 253.1);
@@ -205,24 +205,36 @@ tr:nth-child(even) {
 /* --------------------------------------------------------------------------
    5. Elementos de Formulario Especiales (Select, Radio, Botones de Acción)
    -------------------------------------------------------------------------- */
-select, select option {
+
+/* Estilos del Select en sí (la caja cerrada) */
+select {
+  background-color: #ffffff !important;
+  color: #333333 !important;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0.5rem;
+}
+
+/* Las opciones del desplegable */
+select option {
   background-color: #ffffff !important;
   color: #333333 !important;
 }
 
-select option:hover, select option:focus, select option:active {
-  background-color: #007bff !important;
-  color: #ffffff !important;
-}
+/* 
+   NOTA: Eliminamos cualquier regla de hover (:hover) para las opciones, 
+   porque Firefox las ignora y confunde los colores.
+*/
 
 select:focus {
   outline: none;
   border-color: #007bff;
 }
 
+/* Estilos para los Radio Buttons */
 input[type="radio"] {
   width: auto !important;
-  margin: 0 !important;
+  margin: 0 0.25rem 0 0 !important;
   cursor: pointer;
 }
 

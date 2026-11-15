@@ -5,7 +5,7 @@ defmodule Emergencia.Mascotas.Mascota do
   Este módulo define la estructura de datos de un reporte de mascota y contiene
   el algoritmo puro de similitud que compara dos reportes para determinar si
   podrían corresponder a la misma mascota.
-
+  
   El algoritmo de coincidencia evalúa cuatro atributos (especie, zona, color y
   tamaño) y produce un puntaje de 0 a 100. Solo se comparan reportes de distinto
   tipo (una mascota perdida con una encontrada), ya que dos reportes del mismo
