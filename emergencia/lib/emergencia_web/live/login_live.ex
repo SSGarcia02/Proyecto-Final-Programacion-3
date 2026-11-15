@@ -1,8 +1,20 @@
 defmodule EmergenciaWeb.LoginLive do
+  @moduledoc """
+  LiveView para el inicio de sesión y registro automático de usuarios.
+
+  Esta vista muestra el formulario de conexión y se comunica con el GenServer
+  de Usuarios para validar las credenciales. Cumple con la regla del enunciado:
+  si el usuario no existe, se registra automáticamente con los datos
+  proporcionados.
+  """
+
   use EmergenciaWeb, :live_view
 
   alias Emergencia.Usuarios
 
+  @doc """
+  Inicializa la vista con los campos vacíos y sin errores.
+  """
   @impl true
   def mount(_params, _session, socket) do
     {:ok,
@@ -12,6 +24,17 @@ defmodule EmergenciaWeb.LoginLive do
      |> assign(:password, "")}
   end
 
+  @doc """
+  Maneja el evento de conexión cuando el usuario envía el formulario.
+
+  Valida que los campos no estén vacíos, llama a `Usuarios.conectar/2` y, si la
+  autenticación es exitosa, registra la actividad y redirige al controlador de
+  sesión para guardar el usuario en la cookie HTTP.
+
+  ## Retorna
+  - Redirección a `/sesion/crear` si el login es exitoso.
+  - Mensaje de error si las credenciales son incorrectas o los campos están vacíos.
+  """
   @impl true
   def handle_event("conectar", %{"username" => username, "password" => password}, socket) do
     username = String.trim(username)

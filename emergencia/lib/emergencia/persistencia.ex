@@ -1,12 +1,22 @@
 defmodule Emergencia.Persistencia do
   @moduledoc """
-  Módulo centralizado para leer y escribir archivos CSV en `data/`.
+  Módulo centralizado para leer y escribir archivos de texto plano (CSV) en la
+  carpeta `data/`.
 
-  Reglas:
-  - Un registro por línea, campos separados por coma.
-  - Los campos de texto NO pueden contener comas (para mantenerlo simple).
-  - La primera línea es siempre encabezado.
-  - Cada archivo tiene su propio conjunto de columnas.
+  Este módulo implementa la capa de persistencia del sistema y es utilizado por
+  todos los GenServers para guardar y recuperar el estado de sus entidades.
+  Para mantener la integridad de los datos, se siguen las siguientes reglas:
+
+  - Un registro por línea, con los campos separados por un delimitador (coma `,`
+    o pipe `|`).
+  - La primera línea de cada archivo es siempre el encabezado.
+  - Los campos de texto no deben contener el delimitador (para evitar romper el CSV).
+  - Las estructuras anidadas (listas, mapas) se serializan en formato JSON.
+
+  El módulo está dividido en tres secciones:
+  1. **Utilidades genéricas:** Rutas, lectura y escritura básica de archivos.
+  2. **Conversiones:** Funciones para transformar un struct en una fila CSV y viceversa.
+  3. **API de alto nivel:** Funciones `leer_*` y `guardar_*` para cada dominio.
   """
 
   @data_dir Path.join([__DIR__, "..", "..", "data"])
@@ -14,14 +24,24 @@ defmodule Emergencia.Persistencia do
   # ---------- Rutas y verificación ----------
 
   @doc """
-  Devuelve la ruta absoluta a un archivo dentro de `data/`.
+  Devuelve la ruta absoluta a un archivo dentro de la carpeta `data/`.
+
+  ## Parámetros
+  - `archivo`: El nombre del archivo (ej. `"usuarios.csv"`).
+
+  ## Retorna
+  - Un string con la ruta completa.
   """
   def ruta(archivo) do
     Path.join(@data_dir, archivo)
   end
 
   @doc """
-  Verifica que la carpeta data/ exista.
+  Verifica que la carpeta `data/` exista en el sistema de archivos.
+
+  ## Retorna
+  - `{:ok, ruta}` si la carpeta existe.
+  - `{:error, :carpeta_no_encontrada}` en caso contrario.
   """
   def verificar_carpeta do
     if File.dir?(@data_dir) do
@@ -34,11 +54,18 @@ defmodule Emergencia.Persistencia do
   # ---------- Lectura genérica ----------
 
   @doc """
-  Lee un CSV y devuelve sus filas de datos (sin el encabezado).
+  Lee un archivo CSV y devuelve sus filas de datos (sin el encabezado).
 
-  Devuelve `{:ok, filas}` o `{:error, motivo}`.
-  Cada fila es una lista de strings.
-  Si el archivo no existe, devuelve `{:ok, []}` (no es error).
+  Cada fila se divide en campos usando el separador indicado (por defecto `,`).
+  Si el archivo no existe, retorna una lista vacía (no lo considera un error).
+
+  ## Parámetros
+  - `nombre_archivo`: El nombre del archivo a leer.
+  - `separador`: El carácter delimitador (por defecto `","`).
+
+  ## Retorna
+  - `{:ok, filas}` donde cada fila es una lista de strings.
+  - `{:error, motivo}` si ocurre un error de lectura.
   """
   def leer_filas(nombre_archivo, separador \\ ",") do
     ruta_archivo = ruta(nombre_archivo)
@@ -49,7 +76,6 @@ defmodule Emergencia.Persistencia do
           contenido
           |> String.split("\n", trim: true)
           |> Enum.drop(1)
-          # <-- Usa el separador
           |> Enum.map(&String.split(&1, separador))
 
         {:ok, filas}
@@ -65,18 +91,22 @@ defmodule Emergencia.Persistencia do
   # ---------- Escritura genérica ----------
 
   @doc """
-  Escribe un CSV completo (encabezado + filas).
-  Sobrescribe el archivo si ya existe.
+  Escribe un archivo CSV completo (encabezado + filas), sobrescribiendo el contenido
+  anterior si el archivo ya existe.
 
-  `encabezado` es una lista de strings.
-  `filas` es una lista de listas de strings.
+  ## Parámetros
+  - `nombre_archivo`: El nombre del archivo a escribir.
+  - `encabezado`: Una lista de strings con los nombres de las columnas.
+  - `filas`: Una lista de listas de strings (cada lista es una fila).
+  - `separador`: El carácter delimitador (por defecto `","`).
 
-  Devuelve `:ok` o `{:error, motivo}`.
+  ## Retorna
+  - `:ok` si la escritura es exitosa.
+  - `{:error, motivo}` en caso contrario.
   """
   def escribir_filas(nombre_archivo, encabezado, filas, separador \\ ",") do
     contenido =
       [encabezado | filas]
-      # <-- Usa el separador
       |> Enum.map(&Enum.join(&1, separador))
       |> Enum.join("\n")
       |> Kernel.<>("\n")
@@ -87,8 +117,12 @@ defmodule Emergencia.Persistencia do
   # ---------- Utilidades de validación ----------
 
   @doc """
-  Verifica que un campo de texto no contenga comas ni saltos de línea.
-  Devuelve :ok o {:error, :campo_invalido}.
+  Verifica que un campo de texto no contenga comas ni saltos de línea
+  (para que sea seguro guardarlo en el CSV).
+
+  ## Retorna
+  - `true` si el campo es seguro.
+  - `false` en caso contrario.
   """
   def campo_seguro?(valor) when is_binary(valor) do
     not String.contains?(valor, [",", "\n", "\r"])
@@ -108,7 +142,7 @@ defmodule Emergencia.Persistencia do
   def encabezado_usuarios, do: @encabezado_usuarios
 
   @doc """
-  Convierte un struct Usuario en una lista de strings (fila CSV).
+  Convierte un struct `Usuario` en una lista de strings (fila CSV).
   """
   def usuario_a_fila(%Usuario{} = u) do
     [
@@ -122,8 +156,11 @@ defmodule Emergencia.Persistencia do
   end
 
   @doc """
-  Convierte una fila CSV en un struct Usuario.
-  Devuelve {:ok, usuario} o {:error, motivo}.
+  Convierte una fila CSV en un struct `Usuario`.
+
+  ## Retorna
+  - `{:ok, usuario}` si la fila es válida.
+  - `{:error, motivo}` en caso contrario.
   """
   def fila_a_usuario([username, password, nombre_completo, tipo_str, zona, conectado_str]) do
     with {:ok, tipo} <- Usuario.parsear_tipo(tipo_str),
@@ -149,8 +186,11 @@ defmodule Emergencia.Persistencia do
   # ---------- API de alto nivel para usuarios ----------
 
   @doc """
-  Lee todos los usuarios desde data/usuarios.csv.
-  Devuelve {:ok, %{username => usuario}} o {:error, motivo}.
+  Lee todos los usuarios desde `data/usuarios.csv`.
+
+  ## Retorna
+  - `{:ok, %{username => usuario}}` con el mapa de usuarios.
+  - `{:error, motivo}` si ocurre un error.
   """
   def leer_usuarios do
     with {:ok, filas} <- leer_filas("usuarios.csv") do
@@ -178,17 +218,14 @@ defmodule Emergencia.Persistencia do
   end
 
   @doc """
-  Guarda todos los usuarios en data/usuarios.csv.
+  Guarda todos los usuarios en `data/usuarios.csv`.
 
-  Acepta un mapa %{username => usuario}.
-  Los usuarios cuyos campos de texto no sean seguros para CSV
-  se omiten (no se escriben).
+  Los usuarios cuyos campos de texto no sean seguros para CSV se omiten
+  (no se escriben), pero el resto sí se guarda.
 
-  Devuelve:
+  ## Retorna
   - `{:ok, escritos, omitidos}` si al menos uno se escribió.
-    `omitidos` es la lista de usernames que se saltaron (puede ser `[]`).
-  - `{:error, {:todos_invalidos, omitidos}}` si ninguno se pudo escribir
-    y al menos había un usuario.
+  - `{:error, {:todos_invalidos, omitidos}}` si ninguno se pudo escribir.
   - `{:error, motivo}` si falló la escritura del archivo.
   """
   def guardar_usuarios(usuarios) when is_map(usuarios) do
@@ -201,14 +238,12 @@ defmodule Emergencia.Persistencia do
 
     case validos do
       [] when map_size(usuarios) == 0 ->
-        # No había usuarios: es válido, escribe solo el encabezado
         case escribir_filas("usuarios.csv", @encabezado_usuarios, []) do
           :ok -> {:ok, 0, []}
           {:error, razon} -> {:error, razon}
         end
 
       [] ->
-        # Había usuarios, pero todos eran inválidos
         {:error, {:todos_invalidos, usernames_omitidos}}
 
       _ ->
@@ -233,26 +268,25 @@ defmodule Emergencia.Persistencia do
   def encabezado_zonas, do: @encabezado_zonas
 
   @doc """
-  Convierte un struct Zona en una lista de strings (fila CSV).
-  Como los sectores son estructuras anidadas, los guardamos como texto JSON.
+  Convierte un struct `Zona` en una lista de strings (fila CSV).
+  Los sectores anidados se serializan como un string JSON.
   """
   def zona_a_fila(%Zona{} = z) do
     [
       z.codigo,
       z.nombre,
       Atom.to_string(z.nivel),
-      # Convierte la lista de sectores a un string JSON
       Jason.encode!(z.sectores)
     ]
   end
 
   @doc """
-  Convierte una fila CSV en un struct Zona.
+  Convierte una fila CSV en un struct `Zona`, reconstruyendo los sectores y puntos
+  anidados desde el JSON.
   """
   def fila_a_zona([codigo, nombre, nivel_str, sectores_json]) do
     with {:ok, nivel} <- Zona.parsear_nivel(nivel_str),
          {:ok, sectores_mapas} <- Jason.decode(sectores_json) do
-      # Reconstruimos los structs anidados desde los mapas JSON
       sectores =
         Enum.map(sectores_mapas, fn s_map ->
           puntos =
@@ -281,7 +315,8 @@ defmodule Emergencia.Persistencia do
   # ---------- API de alto nivel para zonas ----------
 
   @doc """
-  Lee todas las zonas desde data/zonas.csv.
+  Lee todas las zonas desde `data/zonas.csv` y calcula recursivamente el total
+  de personas afectadas de cada zona.
   """
   def leer_zonas do
     with {:ok, filas} <- leer_filas("zonas.csv", "|") do
@@ -290,7 +325,6 @@ defmodule Emergencia.Persistencia do
         |> Enum.map(&fila_a_zona/1)
         |> Enum.reduce(%{}, fn
           {:ok, zona}, acc ->
-            # Calculamos las personas afectadas al vuelo usando la recursividad
             zona_completa = %{zona | personas_afectadas: Zona.calcular_total_personas(zona)}
             Map.put(acc, zona_completa.codigo, zona_completa)
 
@@ -303,7 +337,7 @@ defmodule Emergencia.Persistencia do
   end
 
   @doc """
-  Guarda todas las zonas en data/zonas.csv.
+  Guarda todas las zonas en `data/zonas.csv`.
   """
   def guardar_zonas(zonas) when is_map(zonas) do
     filas = Enum.map(zonas, fn {_codigo, zona} -> zona_a_fila(zona) end)
@@ -330,7 +364,7 @@ defmodule Emergencia.Persistencia do
   def encabezado_recursos, do: @encabezado_recursos
 
   @doc """
-  Convierte un struct Recurso en una fila CSV.
+  Convierte un struct `Recurso` en una fila CSV.
   """
   def recurso_a_fila(%Recurso{} = r) do
     [
@@ -345,7 +379,7 @@ defmodule Emergencia.Persistencia do
   end
 
   @doc """
-  Convierte una fila CSV en un struct Recurso.
+  Convierte una fila CSV en un struct `Recurso`.
   """
   def fila_a_recurso([codigo, nombre, categoria, unidad, ubicacion, cantidad_str, historial_json]) do
     with {cantidad, ""} <- Integer.parse(cantidad_str),
@@ -368,8 +402,8 @@ defmodule Emergencia.Persistencia do
   def fila_a_recurso(_), do: {:error, :fila_invalida}
 
   @doc """
-  Lee todos los recursos desde data/recursos.csv.
-  Usa el separador "|" para evitar conflictos con el JSON.
+  Lee todos los recursos desde `data/recursos.csv`.
+  Usa el separador `"|"` para evitar conflictos con el JSON del historial.
   """
   def leer_recursos do
     with {:ok, filas} <- leer_filas("recursos.csv", "|") do
@@ -386,7 +420,7 @@ defmodule Emergencia.Persistencia do
   end
 
   @doc """
-  Guarda todos los recursos en data/recursos.csv.
+  Guarda todos los recursos en `data/recursos.csv`.
   """
   def guardar_recursos(recursos) when is_map(recursos) do
     filas = Enum.map(recursos, fn {_codigo, r} -> recurso_a_fila(r) end)
@@ -549,7 +583,6 @@ defmodule Emergencia.Persistencia do
   def fila_a_albergue(_), do: {:error, :fila_invalida}
 
   def leer_albergues do
-    # Usamos "|" como separador para evitar conflictos con el JSON
     with {:ok, filas} <- leer_filas("albergues.csv", "|") do
       albergues =
         filas
@@ -744,7 +777,6 @@ defmodule Emergencia.Persistencia do
   def fila_a_mascota(_), do: {:error, :fila_invalida}
 
   def leer_mascotas do
-    # Usamos "|" porque las características pueden tener comas
     with {:ok, filas} <- leer_filas("mascotas.csv", "|") do
       mascotas =
         filas
@@ -785,11 +817,15 @@ defmodule Emergencia.Persistencia do
     end
   end
 
+  @doc """
+  Registra una actividad de un usuario en `data/actividad.csv`.
+
+  Agrega una nueva línea con la fecha actual, el username y la acción realizada.
+  """
   def registrar_actividad(username, accion) do
     fecha = DateTime.utc_now() |> DateTime.to_string()
     nueva_actividad = %{fecha: fecha, username: username, accion: accion}
 
-    # Leemos lo que hay, agregamos la nueva y guardamos
     case leer_actividad() do
       {:ok, actividades} ->
         filas = Enum.map([nueva_actividad | actividades], &actividad_a_fila/1)

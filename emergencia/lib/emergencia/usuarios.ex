@@ -1,12 +1,20 @@
 defmodule Emergencia.Usuarios do
   @moduledoc """
-  GenServer que mantiene en memoria el estado de los usuarios registrados
-  y lo persiste en `data/usuarios.csv`.
+  GenServer que administra el registro, autenticación y actividad de los usuarios
+  del sistema de emergencias.
 
-  El estado interno es un mapa `%{username => %Usuario{}}`.
+  El estado interno es un mapa `%{username => %Usuario{}}` que se mantiene en
+  memoria y se sincroniza con el archivo `data/usuarios.csv` después de cada
+  operación que modifica el estado.
 
-  Todas las operaciones que modifican el estado se guardan en disco
-  después de aplicarse, usando `Emergencia.Persistencia.guardar_usuarios/1`.
+  Flujos principales:
+  - **Registro explícito:** A través de `registrar/5`, se crea un usuario con
+    todos los campos requeridos.
+  - **Registro automático (conexión):** A través de `conectar/5`, si el username
+    no existe, el sistema lo registra automáticamente con los datos
+    proporcionados (cumpliendo la regla del enunciado).
+  - **Validación de credenciales:** Si el usuario existe, se compara la
+    contraseña usando pattern matching (`^password`) antes de conectarlo.
   """
 
   use GenServer
@@ -16,13 +24,22 @@ defmodule Emergencia.Usuarios do
 
   # ---------- API pública ----------
 
+  @doc """
+  Inicia el GenServer y registra el proceso con el nombre `Emergencia.Usuarios`.
+  """
   def start_link(_opts \\ []) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
   @doc """
   Registra un usuario nuevo.
-  Devuelve `{:ok, usuario}` o `{:error, motivo}`.
+
+  Realiza validaciones de campos (username, password, zona) y de tipo de usuario.
+
+  ## Retorna
+  - `{:ok, usuario}` si se registra correctamente.
+  - `{:error, motivo}` si el username ya existe, el tipo es inválido, o algún
+    campo obligatorio está vacío.
   """
   def registrar(username, password, nombre_completo, tipo, zona) do
     GenServer.call(__MODULE__, {:registrar, username, password, nombre_completo, tipo, zona})
@@ -31,17 +48,20 @@ defmodule Emergencia.Usuarios do
   @doc """
   Conecta a un usuario.
 
-  - Si no existe, lo registra automáticamente con los datos recibidos.
-  - Si existe, valida que la contraseña coincida.
+  Si el usuario no existe, lo registra automáticamente con los datos recibidos.
+  Si existe, valida que la contraseña coincida.
 
-  Devuelve `{:ok, usuario}` o `{:error, motivo}`.
+  ## Retorna
+  - `{:ok, usuario}` si la conexión es exitosa.
+  - `{:error, :password_incorrecta}` si la contraseña no coincide.
+  - `{:error, motivo}` si hay algún otro problema en el registro automático.
   """
   def conectar(username, password, tipo \\ :ciudadano, zona \\ "sin_zona", nombre_completo \\ nil) do
     GenServer.call(__MODULE__, {:conectar, username, password, tipo, zona, nombre_completo})
   end
 
   @doc """
-  Marca al usuario como desconectado.
+  Marca al usuario como desconectado (cambia `conectado: false`).
   """
   def desconectar(username) do
     GenServer.cast(__MODULE__, {:desconectar, username})
@@ -49,7 +69,10 @@ defmodule Emergencia.Usuarios do
 
   @doc """
   Busca un usuario por su username.
-  Devuelve `{:ok, usuario}` o `{:error, :no_encontrado}`.
+
+  ## Retorna
+  - `{:ok, usuario}` si existe.
+  - `{:error, :no_encontrado}` en caso contrario.
   """
   def buscar(username) do
     GenServer.call(__MODULE__, {:buscar, username})
@@ -63,8 +86,9 @@ defmodule Emergencia.Usuarios do
   end
 
   @doc """
-  Registra una actividad asociada a un usuario.
-  Por ahora se guarda en el log del servidor (IO.inspect).
+  Registra una actividad realizada por un usuario.
+
+  La actividad se guarda en `data/actividad.csv` a través del módulo de Persistencia.
   """
   def registrar_actividad(username, actividad) do
     GenServer.cast(__MODULE__, {:actividad, username, actividad})
@@ -99,7 +123,7 @@ defmodule Emergencia.Usuarios do
   def handle_call({:conectar, username, password, tipo, zona, nombre_completo}, _from, usuarios) do
     case Map.get(usuarios, username) do
       nil ->
-        # No existe: registro automático (regla del enunciado)
+        # No existe: registro automático
         case do_registrar(usuarios, username, password, nombre_completo, tipo, zona) do
           {:ok, usuario, nuevos_usuarios} ->
             persistir(nuevos_usuarios)
@@ -153,7 +177,7 @@ defmodule Emergencia.Usuarios do
 
   # ---------- Helpers privados ----------
 
-  # Intenta construir y agregar un usuario.
+  # Intenta construir y agregar un usuario al mapa.
   # Devuelve {:ok, usuario, nuevos_usuarios} o {:error, motivo}.
   defp do_registrar(usuarios, username, password, nombre_completo, tipo, zona) do
     cond do

@@ -1,37 +1,118 @@
 defmodule Emergencia.Necesidades do
+  @moduledoc """
+  GenServer que administra el ciclo de vida de las necesidades (solicitudes de ayuda)
+  en el sistema de emergencias.
+
+  Este módulo mantiene en memoria el mapa de necesidades, valida las transiciones
+  de estado, coordina la asignación de recursos con el GenServer de Recursos y
+  persiste los cambios en `data/necesidades.csv`.
+
+  Reglas de negocio importantes:
+  - Una necesidad recién creada siempre inicia en estado `"pendiente"`.
+  - Solo las necesidades en estado `"pendiente"` pueden recibir una asignación
+    de recursos.
+  - Al asignar un recurso, se descuenta del inventario y la necesidad pasa a
+    `"asignada"`.
+  - Si una necesidad con recurso asignado se cancela, el recurso se devuelve
+    automáticamente al inventario.
+  """
+
   use GenServer
   alias Emergencia.Necesidades.Necesidad
 
   # ---------- API Pública ----------
 
+  @doc """
+  Inicia el GenServer y registra el proceso con el nombre `Emergencia.Necesidades`.
+  """
   def start_link(_opts \\ []) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
+  @doc """
+  Registra una nueva necesidad.
+
+  El estado inicial siempre es `"pendiente"` y se le asigna automáticamente la
+  fecha de creación actual.
+
+  ## Retorna
+  - `{:ok, necesidad}` si se registra correctamente.
+  - `{:error, :id_duplicado}` si ya existe una necesidad con ese ID.
+  """
   def registrar(%Necesidad{} = necesidad) do
     GenServer.call(__MODULE__, {:registrar, necesidad})
   end
 
+  @doc """
+  Devuelve la lista de necesidades ordenadas por prioridad y fecha de creación.
+
+  Las de prioridad `:critica` aparecen primero, seguidas de `:alta`, `:media` y
+  `:baja`. Dentro de la misma prioridad, se ordenan por fecha (las más antiguas
+  primero).
+  """
   def listar_ordenadas do
     GenServer.call(__MODULE__, :listar_ordenadas)
   end
 
+  @doc """
+  Busca una necesidad por su ID.
+
+  ## Retorna
+  - `{:ok, necesidad}` si existe.
+  - `{:error, :no_encontrada}` en caso contrario.
+  """
   def buscar(id) do
     GenServer.call(__MODULE__, {:buscar, id})
   end
 
+  @doc """
+  Asigna un recurso a una necesidad pendiente.
+
+  Realiza las siguientes validaciones:
+  1. La necesidad debe existir y no estar `"atendida"` ni `"cancelada"`.
+  2. El recurso debe existir y su categoría debe coincidir con el tipo de necesidad.
+  3. Debe haber suficientes existencias en el inventario.
+
+  Si todo es correcto, descuenta la cantidad del recurso, cambia el estado de la
+  necesidad a `"asignada"` y guarda el código del recurso asignado.
+
+  ## Retorna
+  - `{:ok, necesidad_actualizada}` si la asignación es exitosa.
+  - `{:error, :necesidad_no_encontrada}` si la necesidad no existe.
+  - `{:error, :estado_no_valido_para_asignar}` si ya está atendida o cancelada.
+  - `{:error, :tipo_incompatible}` si la categoría del recurso no coincide.
+  - `{:error, :sin_existencias}` si no hay suficientes unidades.
+  - `{:error, :recurso_no_encontrado}` si el recurso no existe.
+  """
   def asignar_recurso(id_necesidad, codigo_recurso, cantidad) do
     GenServer.call(__MODULE__, {:asignar_recurso, id_necesidad, codigo_recurso, cantidad})
   end
 
+  @doc """
+  Elimina una necesidad del sistema.
+  """
   def eliminar(id) do
     GenServer.call(__MODULE__, {:eliminar, id})
   end
 
+  @doc """
+  Actualiza los datos de una necesidad existente (sin cambiar su estado).
+  """
   def actualizar(%Necesidad{} = necesidad) do
     GenServer.call(__MODULE__, {:actualizar, necesidad})
   end
 
+  @doc """
+  Cambia el estado de una necesidad.
+
+  Si el nuevo estado es `"cancelada"` y la necesidad tenía un recurso asignado,
+  el recurso se devuelve automáticamente al inventario.
+
+  ## Retorna
+  - `{:ok, necesidad_actualizada}` si el cambio es exitoso.
+  - `{:error, :no_encontrada}` si la necesidad no existe.
+  - `{:error, :estado_invalido}` si el estado no es válido.
+  """
   def cambiar_estado(id, nuevo_estado) do
     GenServer.call(__MODULE__, {:cambiar_estado, id, nuevo_estado})
   end

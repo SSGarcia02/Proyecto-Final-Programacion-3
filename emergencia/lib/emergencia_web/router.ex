@@ -1,4 +1,20 @@
 defmodule EmergenciaWeb.Router do
+  @moduledoc """
+  Enrutador principal de la aplicación Phoenix.
+
+  Este módulo define las rutas HTTP y los LiveViews que se sirven en la aplicación.
+  Está organizado en dos pipelines:
+
+  - **`pipeline :browser`**: Configura los plugs necesarios para el tráfico web
+    (sesiones, protección CSRF, layout, etc.). Todas las rutas de la aplicación
+    (LiveViews y controladores) pasan por este pipeline.
+  - **`pipeline :api`**: Configura los plugs para una API JSON (actualmente no
+    se usa, pero está disponible para futuras extensiones).
+
+  Las rutas están definidas dentro del scope `"/"` y utilizan el prefijo
+  `EmergenciaWeb`. Todas las LiveViews y el controlador de sesión están aquí.
+  """
+
   use EmergenciaWeb, :router
 
   pipeline :browser do
@@ -17,6 +33,8 @@ defmodule EmergenciaWeb.Router do
   scope "/", EmergenciaWeb do
     pipe_through :browser
 
+    # --- Rutas de la aplicación ---
+    # LiveViews principales
     live "/login", LoginLive, :index
     live "/dashboard", DashboardLive, :index
     live "/zonas", ZonasLive, :index
@@ -25,10 +43,13 @@ defmodule EmergenciaWeb.Router do
     live "/albergues", AlberguesLive, :index
     live "/personas", PersonasLive, :index
     live "/mascotas", MascotasLive, :index
+
+    # Rutas del controlador de sesión (login/logout)
     get "/sesion/crear", SesionController, :crear
     delete "/sesion/eliminar", SesionController, :eliminar
     get "/logout", SesionController, :eliminar
 
+    # Página de inicio (generada por Phoenix)
     get "/", PageController, :home
   end
 

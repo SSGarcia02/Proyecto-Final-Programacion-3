@@ -1,4 +1,17 @@
 defmodule EmergenciaWeb.ZonasLive do
+  @moduledoc """
+  LiveView para la gestión de zonas afectadas y su jerarquía (Sector → Punto).
+
+  Esta vista permite:
+  - Registrar zonas con su nivel de afectación y un sector/punto inicial.
+  - Editar y eliminar zonas.
+  - Expandir una zona para ver sus sectores, puntos y las asociaciones
+    (albergues, necesidades, recursos, personas y mascotas).
+  - Visualizar el total de personas afectadas calculado de forma recursiva.
+
+  Solo los usuarios con rol de coordinador o administrador pueden acceder a esta vista.
+  """
+
   use EmergenciaWeb, :live_view
 
   alias Emergencia.Zonas
@@ -10,6 +23,12 @@ defmodule EmergenciaWeb.ZonasLive do
   alias Emergencia.Personas
   alias Emergencia.Mascotas
 
+  @doc """
+  Inicializa la vista cargando las zonas y las asociaciones (albergues,
+  necesidades, recursos, personas y mascotas).
+
+  Verifica que el usuario tenga el rol adecuado (coordinador o administrador).
+  """
   @impl true
   def mount(_params, session, socket) do
     tipo = session["tipo"] || "ciudadano"
@@ -33,7 +52,15 @@ defmodule EmergenciaWeb.ZonasLive do
     end
   end
 
-  # ---------- EVENTOS DE EXPANDIR / COLAPSAR ----------
+  @doc """
+  Maneja los eventos de la LiveView.
+
+  - `"toggle_zona"`: Expande/colapsa el detalle de una zona.
+  - `"editar"`: Carga una zona en el formulario de edición.
+  - `"cancelar_edicion"`: Cancela la edición.
+  - `"eliminar"`: Elimina una zona.
+  - `"registrar"`: Crea o actualiza una zona (con su sector/punto).
+  """
   @impl true
   def handle_event("toggle_zona", %{"codigo" => codigo}, socket) do
     if socket.assigns.zona_expandida == codigo do
@@ -43,17 +70,17 @@ defmodule EmergenciaWeb.ZonasLive do
     end
   end
 
-  # ---------- EVENTOS DE EDITAR ----------
-  @impl true
+  # Carga una zona en el formulario de edición.
   def handle_event("editar", %{"codigo" => codigo}, socket) do
     {:noreply, assign(socket, :zona_editando, codigo)}
   end
 
+  # Cancela la edición.
   def handle_event("cancelar_edicion", _, socket) do
     {:noreply, assign(socket, :zona_editando, nil)}
   end
 
-  # ---------- EVENTOS DE ELIMINAR ----------
+  # Elimina una zona.
   def handle_event("eliminar", %{"codigo" => codigo}, socket) do
     Zonas.eliminar(codigo)
     Usuarios.registrar_actividad(socket.assigns.username, "Eliminó la zona #{codigo}")
@@ -66,8 +93,7 @@ defmodule EmergenciaWeb.ZonasLive do
      |> assign(:zona_expandida, nil)}
   end
 
-  # ---------- EVENTO DE REGISTRAR / ACTUALIZAR ----------
-  @impl true
+  # Registra o actualiza una zona con su sector/punto.
   def handle_event("registrar", params, socket) do
     codigo = String.trim(params["codigo"])
     nombre = String.trim(params["nombre"])
@@ -139,7 +165,6 @@ defmodule EmergenciaWeb.ZonasLive do
 
       case resultado do
         {:ok, _} ->
-          # CORREGIDO: usamos la variable `codigo` que sí existe en este scope
           Usuarios.registrar_actividad(
             socket.assigns.username,
             "Registró/Actualizó la zona #{codigo}"
@@ -161,7 +186,6 @@ defmodule EmergenciaWeb.ZonasLive do
     end
   end
 
-  # ---------- RENDERIZADO ----------
   @impl true
   def render(assigns) do
     ~H"""

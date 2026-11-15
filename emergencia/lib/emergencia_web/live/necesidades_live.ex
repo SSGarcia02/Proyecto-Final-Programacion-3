@@ -1,4 +1,17 @@
 defmodule EmergenciaWeb.NecesidadesLive do
+  @moduledoc """
+  LiveView para la gestión de necesidades puntuales (solicitudes de ayuda).
+
+  Esta vista permite:
+  - Registrar nuevas necesidades (tipo, prioridad, cantidad, zona y descripción).
+  - Asociar una necesidad a una persona o albergue (`asociado_a`).
+  - Visualizar las necesidades en pestañas filtradas por estado.
+  - Filtrar por zona, tipo y prioridad.
+  - Asignar recursos disponibles a una necesidad (descuenta el inventario).
+  - Avanzar el estado de la necesidad (pendiente → asignada → en atención → atendida).
+  - Cancelar una necesidad (devuelve el recurso al inventario si estaba asignado).
+  """
+
   use EmergenciaWeb, :live_view
 
   alias Emergencia.Necesidades
@@ -9,6 +22,10 @@ defmodule EmergenciaWeb.NecesidadesLive do
   alias Emergencia.Personas
   alias Emergencia.Albergues
 
+  @doc """
+  Inicializa la vista cargando las necesidades, zonas, recursos, personas y
+  albergues. Verifica que el usuario tenga una sesión activa.
+  """
   @impl true
   def mount(_params, session, socket) do
     username = session["username"] || "desconocido"
@@ -19,9 +36,7 @@ defmodule EmergenciaWeb.NecesidadesLive do
        |> assign(:necesidades, Necesidades.listar_ordenadas())
        |> assign(:zonas, Zonas.listar())
        |> assign(:recursos, Recursos.listar())
-       # <-- NUEVO
        |> assign(:personas, Personas.listar_personas())
-       # <-- NUEVO
        |> assign(:albergues, Albergues.listar())
        |> assign(:necesidad_expandida, nil)
        |> assign(:necesidad_editando, nil)
@@ -36,6 +51,20 @@ defmodule EmergenciaWeb.NecesidadesLive do
     end
   end
 
+  @doc """
+  Maneja los eventos de la LiveView.
+
+  - `"registrar"`: Crea o edita una necesidad.
+  - `"asignar"`: Asigna un recurso a una necesidad (valida stock y compatibilidad).
+  - `"toggle_necesidad"`: Expande/colapsa el detalle de una necesidad.
+  - `"nada"`: Detiene la propagación de clics.
+  - `"editar"`: Carga una necesidad en el formulario de edición.
+  - `"cancelar_edicion"`: Cancela la edición.
+  - `"cambiar_tab"`: Cambia la pestaña de estado activa.
+  - `"filtrar"`: Actualiza los filtros de zona, tipo y prioridad.
+  - `"avanzar_estado"`: Cambia el estado de una necesidad.
+  - `"cancelar"`: Cancela una necesidad y devuelve el recurso al inventario.
+  """
   @impl true
   def handle_event("registrar", params, socket) do
     tipo_str = params["tipo"]
@@ -56,7 +85,6 @@ defmodule EmergenciaWeb.NecesidadesLive do
             zona: params["zona"],
             prioridad: prioridad,
             descripcion: String.trim(params["descripcion"]),
-            # <-- AGREGADO
             asociado_a: params["asociado_a"]
         }
 
@@ -110,6 +138,7 @@ defmodule EmergenciaWeb.NecesidadesLive do
     end
   end
 
+  # Asigna un recurso a una necesidad.
   def handle_event(
         "asignar",
         %{"necesidad_id" => id, "recurso" => codigo, "cantidad" => cant_str},
@@ -145,6 +174,7 @@ defmodule EmergenciaWeb.NecesidadesLive do
     end
   end
 
+  # Expande o colapsa el detalle de una necesidad.
   def handle_event("toggle_necesidad", %{"id" => id}, socket) do
     if socket.assigns.necesidad_expandida == id do
       {:noreply, assign(socket, :necesidad_expandida, nil)}
@@ -153,10 +183,12 @@ defmodule EmergenciaWeb.NecesidadesLive do
     end
   end
 
+  # Evento vacío para detener la propagación de clics.
   def handle_event("nada", _, socket) do
     {:noreply, socket}
   end
 
+  # Carga una necesidad en el formulario de edición.
   def handle_event("editar", %{"id" => id}, socket) do
     necesidad = Enum.find(socket.assigns.necesidades, &(&1.id == id))
 
@@ -168,14 +200,17 @@ defmodule EmergenciaWeb.NecesidadesLive do
     end
   end
 
+  # Cancela la edición en curso.
   def handle_event("cancelar_edicion", _, socket) do
     {:noreply, assign(socket, :necesidad_editando, nil)}
   end
 
+  # Cambia la pestaña de estado activa.
   def handle_event("cambiar_tab", %{"estado" => estado}, socket) do
     {:noreply, assign(socket, :tab_activa, estado)}
   end
 
+  # Actualiza los filtros de búsqueda.
   def handle_event("filtrar", params, socket) do
     {:noreply,
      socket
@@ -184,6 +219,7 @@ defmodule EmergenciaWeb.NecesidadesLive do
      |> assign(:filtro_prioridad, params["prioridad"] || "")}
   end
 
+  # Avanza el estado de una necesidad.
   def handle_event("avanzar_estado", %{"id" => id, "estado" => nuevo_estado}, socket) do
     case Necesidades.cambiar_estado(id, nuevo_estado) do
       {:ok, _} ->
@@ -202,6 +238,7 @@ defmodule EmergenciaWeb.NecesidadesLive do
     end
   end
 
+  # Cancela una necesidad y devuelve el recurso al inventario.
   def handle_event("cancelar", %{"id" => id}, socket) do
     case Necesidades.cambiar_estado(id, "cancelada") do
       {:ok, _} ->
@@ -217,6 +254,7 @@ defmodule EmergenciaWeb.NecesidadesLive do
     end
   end
 
+  # Filtra las necesidades según pestaña, zona, tipo y prioridad.
   defp filtrar_necesidades(necesidades, tab, zona, tipo, prioridad) do
     Enum.filter(necesidades, fn n ->
       n.estado == tab and
@@ -225,7 +263,6 @@ defmodule EmergenciaWeb.NecesidadesLive do
         (prioridad == "" or Atom.to_string(n.prioridad) == prioridad)
     end)
   end
-
   @impl true
   def render(assigns) do
     ~H"""

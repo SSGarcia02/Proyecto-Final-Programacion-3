@@ -1,31 +1,100 @@
 defmodule Emergencia.Personas do
+  @moduledoc """
+  GenServer que administra el estado de las personas afectadas y los mensajes
+  familiares.
+
+  A diferencia de otros módulos, este GenServer maneja un estado doble:
+  - Un mapa de personas indexado por documento.
+  - Un mapa de mensajes indexado por ID.
+
+  Sus responsabilidades principales son:
+  - Registrar personas y cambiar su estado, manteniendo un historial de cambios.
+  - Sincronizar el estado de la persona con el módulo de Albergues (al cambiar
+    a `"reunificada"`, la persona sale automáticamente del albergue).
+  - Enviar mensajes dirigidos a una persona y marcarlos como leídos.
+  """
+
   use GenServer
   alias Emergencia.Personas.{Persona, Mensaje}
 
+  # ---------- API Pública ----------
+
+  @doc """
+  Inicia el GenServer y registra el proceso con el nombre `Emergencia.Personas`.
+  """
   def start_link(_opts \\ []) do
     GenServer.start_link(__MODULE__, %{personas: %{}, mensajes: %{}}, name: __MODULE__)
   end
 
-  # API Personas
+  @doc """
+  Registra una nueva persona afectada.
+
+  El estado inicial siempre es `"reportada"` y se le asigna la fecha actual al
+  primer registro del historial.
+
+  ## Retorna
+  - `{:ok, persona}` si se registra correctamente.
+  - `{:error, :persona_ya_existe}` si ya hay una persona con ese documento.
+  """
   def registrar_persona(%Persona{} = p), do: GenServer.call(__MODULE__, {:registrar_persona, p})
 
+  @doc """
+  Busca una persona por su documento.
+
+  ## Retorna
+  - `{:ok, persona}` si existe.
+  - `{:error, :no_encontrada}` en caso contrario.
+  """
   def buscar_persona(documento), do: GenServer.call(__MODULE__, {:buscar_persona, documento})
 
+  @doc """
+  Devuelve la lista de todas las personas registradas.
+  """
   def listar_personas, do: GenServer.call(__MODULE__, :listar_personas)
 
+  @doc """
+  Cambia el estado de una persona y agrega una entrada al historial.
+
+  Si el nuevo estado es `"reunificada"`, busca a la persona en todos los
+  albergues y registra su salida automáticamente.
+
+  ## Retorna
+  - `{:ok, persona_actualizada}` si el cambio es exitoso.
+  - `{:error, :no_encontrada}` si la persona no existe.
+  - `{:error, :estado_invalido}` si el estado no es válido.
+  """
   def cambiar_estado(documento, nuevo_estado),
     do: GenServer.call(__MODULE__, {:cambiar_estado, documento, nuevo_estado})
 
-  # API Mensajes
+  @doc """
+  Envía un mensaje a una persona (destinatario).
+
+  Asigna automáticamente la fecha actual al mensaje.
+
+  ## Retorna
+  - `{:ok, mensaje}` si se envía correctamente.
+  """
   def enviar_mensaje(%Mensaje{} = m), do: GenServer.call(__MODULE__, {:enviar_mensaje, m})
 
+  @doc """
+  Devuelve la lista de mensajes dirigidos a una persona, ordenados del más
+  reciente al más antiguo.
+  """
   def listar_mensajes(documento), do: GenServer.call(__MODULE__, {:listar_mensajes, documento})
 
+  @doc """
+  Marca un mensaje como leído.
+
+  ## Retorna
+  - `{:ok, mensaje_actualizado}` si se marca correctamente.
+  - `{:error, :no_encontrado}` si el mensaje no existe.
+  """
   def marcar_mensaje_leido(id) do
     GenServer.call(__MODULE__, {:marcar_mensaje_leido, id})
   end
 
-  # Callbacks
+  # ---------- Callbacks ----------
+
   @impl true
   def init(_opts) do
     personas =
@@ -57,7 +126,6 @@ defmodule Emergencia.Personas do
       }
 
       nuevas_personas = Map.put(state.personas, persona.documento, nueva_persona)
-      # <-- NUEVO
       Emergencia.Persistencia.guardar_personas(nuevas_personas)
       {:reply, {:ok, nueva_persona}, %{state | personas: nuevas_personas}}
     end
@@ -95,9 +163,8 @@ defmodule Emergencia.Personas do
           nuevas_personas = Map.put(state.personas, documento, persona_actualizada)
           Emergencia.Persistencia.guardar_personas(nuevas_personas)
 
-          # <-- NUEVO: Si se reunifica, lo sacamos del albergue
+          # Si se reunifica, lo sacamos del albergue
           if nuevo_estado == "reunificada" do
-            # Buscamos en qué albergue está y lo sacamos
             Enum.each(Emergencia.Albergues.listar(), fn albergue ->
               if documento in albergue.personas do
                 Emergencia.Albergues.egresar_persona(albergue.codigo, documento)

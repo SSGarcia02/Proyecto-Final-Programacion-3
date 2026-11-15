@@ -1,8 +1,39 @@
 defmodule EmergenciaWeb.DashboardLive do
+  @moduledoc """
+  LiveView del Panel de Comando principal.
+
+  Esta vista es el punto de entrada después del inicio de sesión. Muestra un
+  resumen del estado global del sistema y proporciona acceso a los módulos de
+  gestión.
+
+  La información mostrada depende del rol del usuario:
+  - **Coordinadores y administradores:** Ven el resumen global de estadísticas
+    (necesidades, personas, albergues, mascotas) y las alertas de recursos críticos.
+  - **Voluntarios y ciudadanos:** Solo ven las tarjetas de acceso a los módulos
+    permitidos para su rol, sin acceso al resumen global.
+  """
+
   use EmergenciaWeb, :live_view
 
   alias Emergencia.{Zonas, Necesidades, Recursos, Albergues, Personas, Mascotas}
 
+  @doc """
+  Inicializa el Dashboard calculando las estadísticas globales del sistema.
+
+  Extrae de la sesión el `username`, `tipo` y `zona` del usuario autenticado.
+  Si no hay sesión válida, redirige al login.
+
+  Calcula:
+  - Recursos críticos (cantidad < 10).
+  - Necesidades pendientes y atendidas.
+  - Personas localizadas o reunificadas.
+  - Porcentaje de ocupación global de los albergues.
+  - Mascotas activas y posibles coincidencias.
+
+  ## Retorna
+  - `{:ok, socket}` con las estadísticas asignadas.
+  - `{:ok, socket_redirigido}` si no hay sesión.
+  """
   @impl true
   def mount(_params, session, socket) do
     case session do

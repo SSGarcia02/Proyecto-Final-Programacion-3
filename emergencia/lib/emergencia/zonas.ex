@@ -1,6 +1,14 @@
 defmodule Emergencia.Zonas do
   @moduledoc """
-  GenServer que mantiene el estado de las zonas afectadas.
+  GenServer que administra el estado de las zonas afectadas por la emergencia.
+
+  Este módulo mantiene en memoria un mapa de zonas indexado por código. Al
+  registrar una nueva zona, delega el cálculo del total de personas afectadas a
+  la función recursiva `Zona.calcular_total_personas/1`, que recorre la
+  jerarquía Zona → Sectores → Puntos.
+
+  La persistencia se realiza en `data/zonas.csv`. Para evitar conflictos con las
+  comas del JSON (que guarda los sectores anidados), se utiliza el separador `|`.
   """
 
   use GenServer
@@ -8,13 +16,23 @@ defmodule Emergencia.Zonas do
 
   # ---------- API pública ----------
 
+  @doc """
+  Inicia el GenServer y registra el proceso con el nombre `Emergencia.Zonas`.
+  """
   def start_link(_opts \\ []) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
   @doc """
-  Registra una zona nueva. Calcula automáticamente el total de personas afectadas
-  usando la función recursiva de la Zona.
+  Registra una zona nueva en el sistema.
+
+  Antes de guardarla, calcula el total de personas afectadas usando la función
+  recursiva `Zona.calcular_total_personas/1`. Si el código no existe, la
+  persiste en el CSV.
+
+  ## Retorna
+  - `{:ok, zona_actualizada}` si se registra correctamente.
+  - `{:error, :zona_ya_existe}` si ya hay una zona con ese código.
   """
   def registrar(%Zona{} = zona) do
     GenServer.call(__MODULE__, {:registrar, zona})
@@ -22,6 +40,10 @@ defmodule Emergencia.Zonas do
 
   @doc """
   Busca una zona por su código.
+
+  ## Retorna
+  - `{:ok, zona}` si existe.
+  - `{:error, :no_encontrada}` en caso contrario.
   """
   def buscar(codigo) do
     GenServer.call(__MODULE__, {:buscar, codigo})
@@ -35,7 +57,11 @@ defmodule Emergencia.Zonas do
   end
 
   @doc """
-  Borra una zona registrada.
+  Elimina una zona del sistema.
+
+  ## Retorna
+  - `:ok` si se elimina correctamente.
+  - `{:error, :no_encontrada}` si la zona no existe.
   """
   def eliminar(codigo) do
     GenServer.call(__MODULE__, {:eliminar, codigo})
@@ -45,7 +71,6 @@ defmodule Emergencia.Zonas do
 
   @impl true
   def init(_opts) do
-    # Usamos Emergencia.Persistencia directo
     case Emergencia.Persistencia.leer_zonas() do
       {:ok, zonas} -> {:ok, zonas}
       {:error, _} -> {:ok, %{}}
@@ -57,10 +82,10 @@ defmodule Emergencia.Zonas do
     if Map.has_key?(zonas, zona.codigo) do
       {:reply, {:error, :zona_ya_existe}, zonas}
     else
+      # Calculamos el total de personas afectadas antes de guardar
       zona_actualizada = %{zona | personas_afectadas: Zona.calcular_total_personas(zona)}
       nuevas_zonas = Map.put(zonas, zona.codigo, zona_actualizada)
 
-      # Usamos Emergencia.Persistencia directo
       Emergencia.Persistencia.guardar_zonas(nuevas_zonas)
 
       {:reply, {:ok, zona_actualizada}, nuevas_zonas}

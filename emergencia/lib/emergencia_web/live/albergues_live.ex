@@ -1,4 +1,18 @@
 defmodule EmergenciaWeb.AlberguesLive do
+  @moduledoc """
+  LiveView para la gestión de albergues temporales.
+
+  Esta vista permite a los usuarios autenticados:
+  - Registrar nuevos albergues con su capacidad máxima.
+  - Ver una tabla expansible con los cupos disponibles.
+  - Buscar personas por documento o nombre para ingresarlas a un albergue.
+  - Registrar ingresos y salidas de personas (sincronizando su estado).
+  - Asociar recursos y necesidades al albergue.
+  - Visualizar un reporte del Top 3 de albergues con mayor ocupación.
+
+  Todas las acciones exitosas se registran en el log de actividad del usuario.
+  """
+
   use EmergenciaWeb, :live_view
 
   alias Emergencia.Albergues
@@ -9,6 +23,13 @@ defmodule EmergenciaWeb.AlberguesLive do
   alias Emergencia.Personas
   alias Emergencia.Usuarios
 
+  @doc """
+  Inicializa la vista cargando los datos necesarios.
+
+  Verifica que el usuario esté autenticado (sesión con username). Si no lo está,
+  lo redirige al login. Si lo está, carga las listas de albergues, zonas,
+  recursos, necesidades y personas.
+  """
   @impl true
   def mount(_params, session, socket) do
     username = session["username"] || "desconocido"
@@ -30,6 +51,22 @@ defmodule EmergenciaWeb.AlberguesLive do
     end
   end
 
+  @doc """
+  Maneja todos los eventos de interacción de la LiveView.
+
+  Esta única función maneja múltiples eventos (identificados por el primer
+  argumento):
+
+  - `"buscar_persona"`: Filtra la lista de personas en tiempo real (por documento o nombre).
+  - `"registrar"`: Registra un nuevo albergue en el sistema, validando la capacidad.
+  - `"eliminar"`: Elimina un albergue si no tiene personas alojadas.
+  - `"toggle_albergue"`: Expande o colapsa el detalle de un albergue en la tabla.
+  - `"nada"`: Evento vacío para evitar la propagación de clics en botones.
+  - `"ingresar"`: Registra el ingreso de una persona (valida existencia y cupo).
+  - `"egresar"`: Registra la salida de una persona (cambia su estado a `"reportada"`).
+  - `"asociar_recurso"`: Asocia un recurso al albergue.
+  - `"asociar_necesidad"`: Asocia una necesidad al albergue.
+  """
   @impl true
   def handle_event("buscar_persona", %{"busqueda" => termino}, socket) do
     personas_filtradas =
@@ -45,7 +82,7 @@ defmodule EmergenciaWeb.AlberguesLive do
      |> assign(:busqueda_persona, termino)}
   end
 
-  @impl true
+  # Registra un nuevo albergue en el sistema.
   def handle_event("registrar", params, socket) do
     codigo = String.trim(params["codigo"])
     nombre = String.trim(params["nombre"])
@@ -80,6 +117,7 @@ defmodule EmergenciaWeb.AlberguesLive do
     end
   end
 
+  # Elimina un albergue del sistema (solo si no tiene personas).
   def handle_event("eliminar", %{"codigo" => codigo}, socket) do
     case Albergues.eliminar(codigo) do
       :ok ->
@@ -92,6 +130,7 @@ defmodule EmergenciaWeb.AlberguesLive do
     end
   end
 
+  # Alterna la expansión/colapso de la fila de un albergue.
   def handle_event("toggle_albergue", %{"codigo" => codigo}, socket) do
     if socket.assigns.albergue_expandido == codigo do
       {:noreply, assign(socket, :albergue_expandido, nil)}
@@ -100,10 +139,12 @@ defmodule EmergenciaWeb.AlberguesLive do
     end
   end
 
+  # Evento vacío para detener la propagación de clics.
   def handle_event("nada", _, socket) do
     {:noreply, socket}
   end
 
+  # Registra el ingreso de una persona a un albergue.
   def handle_event("ingresar", %{"codigo" => codigo, "documento" => documento}, socket) do
     documento = String.trim(documento)
 
@@ -118,7 +159,6 @@ defmodule EmergenciaWeb.AlberguesLive do
          socket
          |> assign(:albergues, Albergues.listar())
          |> assign(:personas, Personas.listar_personas())
-         # <-- Limpia el buscador
          |> assign(:busqueda_persona, "")
          |> assign(:error, nil)}
 
@@ -141,6 +181,7 @@ defmodule EmergenciaWeb.AlberguesLive do
     end
   end
 
+  # Registra la salida de una persona de un albergue.
   def handle_event("egresar", %{"codigo" => codigo, "documento" => documento}, socket) do
     documento = String.trim(documento)
 
@@ -155,7 +196,6 @@ defmodule EmergenciaWeb.AlberguesLive do
          socket
          |> assign(:albergues, Albergues.listar())
          |> assign(:personas, Personas.listar_personas())
-         # <-- Limpia el buscador
          |> assign(:busqueda_persona, "")
          |> assign(:error, nil)}
 
@@ -167,6 +207,7 @@ defmodule EmergenciaWeb.AlberguesLive do
     end
   end
 
+  # Asocia un recurso al albergue.
   def handle_event("asociar_recurso", %{"codigo" => codigo, "recurso" => rec_codigo}, socket) do
     case Albergues.asociar_recurso(codigo, rec_codigo) do
       {:ok, _} ->
@@ -185,6 +226,7 @@ defmodule EmergenciaWeb.AlberguesLive do
     end
   end
 
+  # Asocia una necesidad al albergue.
   def handle_event("asociar_necesidad", %{"codigo" => codigo, "necesidad" => id_nec}, socket) do
     case Albergues.asociar_necesidad(codigo, id_nec) do
       {:ok, _} ->
@@ -360,9 +402,7 @@ defmodule EmergenciaWeb.AlberguesLive do
                             <option value="">Seleccione una persona</option>
                             <%= for p <- @personas do %>
                               <%= if p.documento not in a.personas do %>
-                                <option value={p.documento}>
-                                  {p.nombre} ({p.documento}) - {p.estado}
-                                </option>
+                                <option value={p.documento}>{p.nombre} ({p.documento}) - {p.estado}</option>
                               <% end %>
                             <% end %>
                           </select>
@@ -411,10 +451,7 @@ defmodule EmergenciaWeb.AlberguesLive do
                               <% nil -> %>
                                 <li>{doc} (Datos no encontrados)</li>
                               <% persona -> %>
-                                <li>
-                                  <strong>{persona.nombre}</strong>
-                                  (Doc: {doc}) - Edad: {persona.edad || "N/A"}
-                                </li>
+                                <li><strong>{persona.nombre}</strong> (Doc: {doc}) - Edad: {persona.edad || "N/A"}</li>
                             <% end %>
                           <% end %>
                         </ul>

@@ -1,21 +1,87 @@
 defmodule Emergencia.Mascotas do
+  @moduledoc """
+  GenServer que administra el estado de los reportes de mascotas perdidas y
+  encontradas durante la emergencia.
+
+  Este módulo es el encargado de mantener en memoria el mapa de reportes, de
+  ejecutar el algoritmo de búsqueda de coincidencias y de persistir los cambios
+  en el archivo `data/mascotas.csv`.
+
+  Las responsabilidades principales de este GenServer son:
+  - Registrar nuevos reportes (validando que el tipo sea "perdida" o "encontrada").
+  - Buscar posibles coincidencias entre reportes activos aplicando el algoritmo
+    de similitud del struct `Mascota`.
+  - Actualizar el estado de las mascotas a `"posible_coincidencia"` cuando se
+    detecta un match.
+  - Resolver una coincidencia confirmada, cerrando ambos reportes y vinculándolos.
+  """
+
   use GenServer
   alias Emergencia.Mascotas.Mascota
 
+  # ---------- API Pública ----------
+
+  @doc """
+  Inicia el GenServer y registra el proceso con el nombre `Emergencia.Mascotas`.
+  """
   def start_link(_opts \\ []) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
+  @doc """
+  Registra un nuevo reporte de mascota (perdida o encontrada).
+
+  Valida que el ID no esté duplicado y que el tipo de reporte sea válido
+  (`"perdida"` o `"encontrada"`).
+
+  ## Retorna
+  - `{:ok, mascota}` si se registra correctamente.
+  - `{:error, :id_duplicado}` si ya existe un reporte con ese ID.
+  - `{:error, :tipo_reporte_invalido}` si el tipo no es válido.
+  """
   def registrar(%Mascota{} = mascota), do: GenServer.call(__MODULE__, {:registrar, mascota})
 
+  @doc """
+  Devuelve la lista de todos los reportes registrados.
+  """
   def listar, do: GenServer.call(__MODULE__, :listar)
 
+  @doc """
+  Busca un reporte por su ID.
+
+  ## Retorna
+  - `{:ok, mascota}` si existe.
+  - `{:error, :no_encontrada}` en caso contrario.
+  """
   def buscar(id), do: GenServer.call(__MODULE__, {:buscar, id})
 
+  @doc """
+  Busca posibles coincidencias para un reporte dado.
+
+  Recorre todos los reportes activos, calcula el puntaje de similitud usando
+  `Mascota.calcular_coincidencia/2` y filtra aquellos con puntaje mayor o igual
+  a 50. Si encuentra coincidencias, actualiza el estado de la mascota consultada
+  y de las coincidentes a `"posible_coincidencia"` y persiste los cambios.
+
+  ## Retorna
+  - `{:ok, lista_coincidencias}` donde cada elemento es `{mascota, puntaje}`.
+  - `{:error, :no_encontrada}` si el ID no existe.
+  """
   def buscar_coincidencias(id) do
     GenServer.call(__MODULE__, {:buscar_coincidencias, id})
   end
 
+  @doc """
+  Resuelve una coincidencia confirmada entre dos reportes.
+
+  Marca ambos reportes como `"resuelta"`, los vincula mutuamente con el campo
+  `reporte_vinculado` y persiste los cambios.
+
+  ## Retorna
+  - `{:ok, m1_actualizada, m2_actualizada}` si se resuelve correctamente.
+  - `{:error, :ya_resuelta}` si alguno de los reportes ya estaba resuelto.
+  - `{:error, :no_encontradas}` si alguno de los IDs no existe.
+  """
   def resolver_coincidencia(id1, id2) do
     GenServer.call(__MODULE__, {:resolver_coincidencia, id1, id2})
   end

@@ -1,10 +1,26 @@
 defmodule EmergenciaWeb.MascotasLive do
+  @moduledoc """
+  LiveView para la gestión de mascotas perdidas y encontradas.
+
+  Esta vista permite registrar reportes de mascotas, filtrarlos por especie,
+  zona y estado, y buscar posibles coincidencias entre reportes de pérdida y
+  encontrados. Cuando se detecta una coincidencia con un puntaje mayor o igual
+  a 50, el sistema actualiza automáticamente el estado a `"posible_coincidencia"`.
+
+  El usuario puede confirmar una coincidencia, lo que cierra ambos reportes y
+  los vincula mutuamente.
+  """
+
   use EmergenciaWeb, :live_view
 
   alias Emergencia.Mascotas
   alias Emergencia.Mascotas.Mascota
   alias Emergencia.Zonas
 
+    @doc """
+  Inicializa la vista cargando la lista de mascotas, las zonas disponibles y
+  los filtros vacíos.
+  """
   @impl true
   def mount(_params, _session, socket) do
     {:ok,
@@ -17,6 +33,19 @@ defmodule EmergenciaWeb.MascotasLive do
      |> assign(:error, nil)}
   end
 
+  @doc """
+  Maneja los eventos de interacción de la LiveView.
+
+  Esta función implementa los siguientes eventos:
+
+  - `"registrar"`: Registra un nuevo reporte de mascota (perdida o encontrada).
+  - `"toggle_mascota"`: Expande o colapsa el detalle de un reporte y busca
+    automáticamente posibles coincidencias.
+  - `"resolver"`: Confirma una coincidencia entre dos reportes, cerrándolos y
+    vinculándolos.
+  - `"filtrar"`: Actualiza los filtros de búsqueda (especie, zona y estado).
+  - `"nada"`: Evento vacío para detener la propagación de clics en botones.
+  """
   @impl true
   def handle_event("registrar", params, socket) do
     id = "M" <> Integer.to_string(System.unique_integer([:positive]))
@@ -48,11 +77,11 @@ defmodule EmergenciaWeb.MascotasLive do
     end
   end
 
+  # Expande o colapsa el detalle de un reporte.
   def handle_event("toggle_mascota", %{"id" => id}, socket) do
     if socket.assigns.mascota_expandida == id do
       {:noreply, assign(socket, :mascota_expandida, nil)}
     else
-      # Al abrir, buscamos coincidencias automáticamente
       coincidencias =
         case Mascotas.buscar_coincidencias(id) do
           {:ok, lista} -> lista
@@ -66,6 +95,7 @@ defmodule EmergenciaWeb.MascotasLive do
     end
   end
 
+  # Resuelve una coincidencia confirmada.
   def handle_event("resolver", %{"id1" => id1, "id2" => id2}, socket) do
     case Mascotas.resolver_coincidencia(id1, id2) do
       {:ok, _, _} ->
@@ -84,7 +114,7 @@ defmodule EmergenciaWeb.MascotasLive do
     end
   end
 
-  @impl true
+  # Actualiza los filtros de búsqueda.
   def handle_event("filtrar", params, socket) do
     filtros = %{
       "especie" => params["especie"],
@@ -95,6 +125,7 @@ defmodule EmergenciaWeb.MascotasLive do
     {:noreply, assign(socket, filtros: filtros)}
   end
 
+  # Evento vacío para detener la propagación de clics.
   def handle_event("nada", _, socket), do: {:noreply, socket}
 
   @impl true

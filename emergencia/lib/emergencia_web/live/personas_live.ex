@@ -1,10 +1,24 @@
 defmodule EmergenciaWeb.PersonasLive do
+  @moduledoc """
+  LiveView para la gestión de personas afectadas y la comunicación entre familiares.
+
+  Esta vista permite:
+  - Registrar nuevas personas con su documento, nombre, edad y zona.
+  - Buscar y filtrar personas por nombre, documento, zona o estado.
+  - Cambiar el estado de una persona (reportada, localizada, en_albergue, etc.).
+  - Expandir el detalle de una persona para ver su historial de estados.
+  - Enviar mensajes familiares a una persona y marcarlos como leídos.
+  """
+
   use EmergenciaWeb, :live_view
 
   alias Emergencia.Personas
   alias Emergencia.Personas.{Persona, Mensaje}
   alias Emergencia.Zonas
 
+  @doc """
+  Inicializa la vista cargando las personas y las zonas disponibles.
+  """
   @impl true
   def mount(_params, _session, socket) do
     {:ok,
@@ -19,6 +33,17 @@ defmodule EmergenciaWeb.PersonasLive do
      |> assign(:error, nil)}
   end
 
+  @doc """
+  Maneja los eventos de interacción de la LiveView.
+
+  - `"filtrar"`: Filtra la lista de personas por texto (nombre/documento), zona y estado.
+  - `"marcar_leido"`: Marca un mensaje como leído y refresca la lista de mensajes.
+  - `"registrar"`: Registra una nueva persona afectada.
+  - `"cambiar_estado"`: Cambia el estado de una persona (actualiza el historial).
+  - `"toggle_persona"`: Expande/colapsa el detalle de una persona y carga sus mensajes.
+  - `"nada"`: Detiene la propagación de clics.
+  - `"enviar_mensaje"`: Envía un mensaje familiar a una persona.
+  """
   @impl true
   def handle_event("filtrar", params, socket) do
     busqueda = params["busqueda"] || ""
@@ -47,12 +72,14 @@ defmodule EmergenciaWeb.PersonasLive do
      |> assign(:filtro_estado, estado)}
   end
 
+  # Marca un mensaje como leído.
   def handle_event("marcar_leido", %{"id" => id, "documento" => doc}, socket) do
     Personas.marcar_mensaje_leido(id)
     mensajes = Personas.listar_mensajes(doc)
     {:noreply, assign(socket, mensajes_actuales: mensajes)}
   end
 
+  # Registra una nueva persona afectada.
   @impl true
   def handle_event("registrar", params, socket) do
     documento = String.trim(params["documento"])
@@ -83,6 +110,7 @@ defmodule EmergenciaWeb.PersonasLive do
     end
   end
 
+  # Cambia el estado de una persona.
   def handle_event("cambiar_estado", %{"documento" => doc, "estado" => nuevo_estado}, socket) do
     case Personas.cambiar_estado(doc, nuevo_estado) do
       {:ok, _} ->
@@ -96,6 +124,7 @@ defmodule EmergenciaWeb.PersonasLive do
     end
   end
 
+  # Expande o colapsa el detalle de una persona.
   def handle_event("toggle_persona", %{"documento" => documento}, socket) do
     if socket.assigns.persona_expandida == documento do
       {:noreply, assign(socket, :persona_expandida, nil)}
@@ -109,8 +138,10 @@ defmodule EmergenciaWeb.PersonasLive do
     end
   end
 
+  # Evento vacío para detener la propagación de clics.
   def handle_event("nada", _, socket), do: {:noreply, socket}
 
+  # Envía un mensaje familiar a una persona.
   def handle_event(
         "enviar_mensaje",
         %{"documento" => doc, "remitente" => remitente, "contenido" => contenido},

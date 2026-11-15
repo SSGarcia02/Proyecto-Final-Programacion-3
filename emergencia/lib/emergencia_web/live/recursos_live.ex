@@ -1,10 +1,29 @@
 defmodule EmergenciaWeb.RecursosLive do
+  @moduledoc """
+  LiveView para la gestión de recursos e inventarios.
+
+  Esta vista permite:
+  - Registrar nuevos recursos con su categoría, unidad y ubicación.
+  - Ver una tabla con la cantidad disponible y un formulario rápido para
+    registrar entradas y salidas.
+  - Filtrar los recursos por categoría y ubicación.
+  - Transferir unidades entre centros de apoyo (validando que sean de la misma
+    categoría y que haya suficientes existencias).
+  - Editar y eliminar recursos existentes.
+  """
+
   use EmergenciaWeb, :live_view
 
   alias Emergencia.Recursos
   alias Emergencia.Recursos.Recurso
   alias Emergencia.Usuarios
 
+  @doc """
+  Inicializa la vista cargando los recursos.
+
+  Solo permite el acceso a usuarios con rol de coordinador, administrador o
+  voluntario. Los ciudadanos son redirigidos al dashboard.
+  """
   @impl true
   def mount(_params, session, socket) do
     tipo = session["tipo"] || "ciudadano"
@@ -24,6 +43,17 @@ defmodule EmergenciaWeb.RecursosLive do
     end
   end
 
+  @doc """
+  Maneja los eventos de interacción de la LiveView.
+
+  - `"registrar"`: Crea o edita un recurso.
+  - `"eliminar"`: Elimina un recurso.
+  - `"editar"`: Carga un recurso en el formulario de edición.
+  - `"cancelar_edicion"`: Cancela la edición.
+  - `"filtrar"`: Actualiza los filtros de categoría y ubicación.
+  - `"movimiento"`: Registra una entrada o salida de inventario.
+  - `"transferir"`: Transfiere unidades entre dos recursos.
+  """
   @impl true
   def handle_event("registrar", params, socket) do
     codigo = String.trim(params["codigo"])
@@ -58,7 +88,6 @@ defmodule EmergenciaWeb.RecursosLive do
 
         case resultado do
           {:ok, _} ->
-            # <-- NUEVO: REGISTRO DE ACTIVIDAD
             Usuarios.registrar_actividad(
               socket.assigns.username,
               "Registró/Actualizó el recurso #{codigo}"
@@ -80,10 +109,9 @@ defmodule EmergenciaWeb.RecursosLive do
     end
   end
 
-  @impl true
+  # Elimina un recurso del sistema.
   def handle_event("eliminar", %{"codigo" => codigo}, socket) do
     Recursos.eliminar(codigo)
-    # <-- NUEVO: REGISTRO DE ACTIVIDAD
     Usuarios.registrar_actividad(socket.assigns.username, "Eliminó el recurso #{codigo}")
 
     {:noreply,
@@ -93,14 +121,17 @@ defmodule EmergenciaWeb.RecursosLive do
      |> assign(:recurso_editando, nil)}
   end
 
+  # Carga un recurso en el formulario de edición.
   def handle_event("editar", %{"codigo" => codigo}, socket) do
     {:noreply, assign(socket, :recurso_editando, codigo)}
   end
 
+  # Cancela la edición.
   def handle_event("cancelar_edicion", _, socket) do
     {:noreply, assign(socket, :recurso_editando, nil)}
   end
 
+  # Actualiza los filtros.
   def handle_event("filtrar", params, socket) do
     {:noreply,
      socket
@@ -108,6 +139,7 @@ defmodule EmergenciaWeb.RecursosLive do
      |> assign(:filtro_ubicacion, params["ubicacion"] || "")}
   end
 
+  # Registra un movimiento de inventario.
   @impl true
   def handle_event(
         "movimiento",
@@ -125,7 +157,6 @@ defmodule EmergenciaWeb.RecursosLive do
 
         case resultado do
           {:ok, _} ->
-            # <-- NUEVO: REGISTRO DE ACTIVIDAD
             Usuarios.registrar_actividad(
               socket.assigns.username,
               "Registró movimiento (#{tipo}) de #{cantidad} en #{codigo}"
@@ -148,6 +179,7 @@ defmodule EmergenciaWeb.RecursosLive do
     end
   end
 
+  # Transfiere unidades entre recursos.
   def handle_event(
         "transferir",
         %{"origen" => origen, "destino" => destino, "cantidad" => cant_str},
@@ -157,7 +189,6 @@ defmodule EmergenciaWeb.RecursosLive do
       {cantidad, ""} when cantidad > 0 ->
         case Recursos.transferir(origen, destino, cantidad) do
           {:ok, _, _} ->
-            # <-- REGISTRO DE ACTIVIDAD
             Usuarios.registrar_actividad(
               socket.assigns.username,
               "Transfirió #{cantidad} unidades de #{origen} a #{destino}"
@@ -193,6 +224,7 @@ defmodule EmergenciaWeb.RecursosLive do
     end
   end
 
+  # Filtra los recursos por categoría y ubicación.
   defp filtrar_recursos(recursos, categoria, ubicacion) do
     Enum.filter(recursos, fn r ->
       (categoria == "" or Atom.to_string(r.categoria) == categoria) and
