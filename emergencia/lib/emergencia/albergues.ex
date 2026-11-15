@@ -78,14 +78,26 @@ defmodule Emergencia.Albergues do
         {:reply, {:error, :no_encontrado}, albergues}
 
       albergue ->
-        case Albergue.ingresar(albergue, documento) do
-          {:ok, actualizado} ->
-            nuevos_albergues = Map.put(albergues, codigo, actualizado)
-            Emergencia.Persistencia.guardar_albergues(nuevos_albergues)
-            {:reply, {:ok, actualizado}, nuevos_albergues}
+        # Validamos que la persona exista en el sistema
+        case Emergencia.Personas.buscar_persona(documento) do
+          {:error, :no_encontrada} ->
+            {:reply, {:error, :persona_no_registrada}, albergues}
 
-          {:error, motivo} ->
-            {:reply, {:error, motivo}, albergues}
+          {:ok, _persona} ->
+            case Albergue.ingresar(albergue, documento) do
+              {:ok, actualizado} ->
+                # 1. Actualizamos el albergue
+                nuevos_albergues = Map.put(albergues, codigo, actualizado)
+                Emergencia.Persistencia.guardar_albergues(nuevos_albergues)
+
+                # 2. Actualizamos el estado de la persona a "en_albergue"
+                Emergencia.Personas.cambiar_estado(documento, "en_albergue")
+
+                {:reply, {:ok, actualizado}, nuevos_albergues}
+
+              {:error, motivo} ->
+                {:reply, {:error, motivo}, albergues}
+            end
         end
     end
   end
@@ -98,8 +110,13 @@ defmodule Emergencia.Albergues do
       albergue ->
         case Albergue.egresar(albergue, documento) do
           {:ok, actualizado} ->
+            # 1. Actualizamos el albergue
             nuevos_albergues = Map.put(albergues, codigo, actualizado)
             Emergencia.Persistencia.guardar_albergues(nuevos_albergues)
+
+            # 2. Actualizamos el estado de la persona a "reportada" de nuevo
+            Emergencia.Personas.cambiar_estado(documento, "reportada")
+
             {:reply, {:ok, actualizado}, nuevos_albergues}
 
           {:error, motivo} ->

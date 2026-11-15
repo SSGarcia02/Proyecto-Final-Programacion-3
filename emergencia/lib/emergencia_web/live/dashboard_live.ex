@@ -79,8 +79,8 @@ defmodule EmergenciaWeb.DashboardLive do
         </div>
       </div>
 
-      <!-- ALERTA DE RECURSOS CRÍTICOS -->
-      <%= if length(@stats.recursos_criticos) > 0 do %>
+      <!-- ALERTA DE RECURSOS CRÍTICOS (Solo coordinadores y admins) -->
+      <%= if @tipo in ["coordinador", "administrador"] and length(@stats.recursos_criticos) > 0 do %>
         <div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 1rem; margin-bottom: 2rem; border-radius: 4px;">
           <h3 style="margin-top: 0; color: #721c24;">⚠️ Alerta de Recursos Críticos</h3>
           <p style="margin: 0; color: #721c24;">
@@ -90,53 +90,55 @@ defmodule EmergenciaWeb.DashboardLive do
         </div>
       <% end %>
 
-      <!-- ESTADÍSTICAS GLOBALES -->
-      <h3 style="color: #333;">Resumen Global del Sistema</h3>
-      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem;">
-        <div style="background: #ffffff; border: 1px solid #ddd; padding: 1rem; border-radius: 8px; text-align: center; border-top: 4px solid #dc3545;">
-          <h4 style="margin: 0 0 0.5rem 0; color: #333;">Necesidades</h4>
-          <p style="font-size: 2rem; margin: 0; color: #dc3545; font-weight: bold;">
-            {@stats.necesidades_pendientes}
-          </p>
-          <p style="margin: 0; font-size: 0.8rem; color: #666;">Pendientes</p>
-          <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: green;">
-            {@stats.necesidades_atendidas} Atendidas
-          </p>
-        </div>
+      <!-- ESTADÍSTICAS GLOBALES (Solo coordinadores y admins) -->
+      <%= if @tipo in ["coordinador", "administrador"] do %>
+        <h3 style="color: #333;">Resumen Global del Sistema</h3>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem;">
+          <div style="background: #ffffff; border: 1px solid #ddd; padding: 1rem; border-radius: 8px; text-align: center; border-top: 4px solid #dc3545;">
+            <h4 style="margin: 0 0 0.5rem 0; color: #333;">Necesidades</h4>
+            <p style="font-size: 2rem; margin: 0; color: #dc3545; font-weight: bold;">
+              {@stats.necesidades_pendientes}
+            </p>
+            <p style="margin: 0; font-size: 0.8rem; color: #666;">Pendientes</p>
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: green;">
+              {@stats.necesidades_atendidas} Atendidas
+            </p>
+          </div>
 
-        <div style="background: #ffffff; border: 1px solid #ddd; padding: 1rem; border-radius: 8px; text-align: center; border-top: 4px solid #007bff;">
-          <h4 style="margin: 0 0 0.5rem 0; color: #333;">Personas</h4>
-          <p style="font-size: 2rem; margin: 0; color: #007bff; font-weight: bold;">
-            {@stats.personas_localizadas}
-          </p>
-          <p style="margin: 0; font-size: 0.8rem; color: #666;">Localizadas/Reunificadas</p>
-          <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: #666;">
-            de {@stats.total_personas} registradas
-          </p>
-        </div>
+          <div style="background: #ffffff; border: 1px solid #ddd; padding: 1rem; border-radius: 8px; text-align: center; border-top: 4px solid #007bff;">
+            <h4 style="margin: 0 0 0.5rem 0; color: #333;">Personas</h4>
+            <p style="font-size: 2rem; margin: 0; color: #007bff; font-weight: bold;">
+              {@stats.personas_localizadas}
+            </p>
+            <p style="margin: 0; font-size: 0.8rem; color: #666;">Localizadas/Reunificadas</p>
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: #666;">
+              de {@stats.total_personas} registradas
+            </p>
+          </div>
 
-        <div style="background: #ffffff; border: 1px solid #ddd; padding: 1rem; border-radius: 8px; text-align: center; border-top: 4px solid #28a745;">
-          <h4 style="margin: 0 0 0.5rem 0; color: #333;">Albergues</h4>
-          <p style="font-size: 2rem; margin: 0; color: #28a745; font-weight: bold;">
-            {Float.round(@stats.porcentaje_ocupacion, 1)}%
-          </p>
-          <p style="margin: 0; font-size: 0.8rem; color: #666;">Ocupación Global</p>
-          <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: #666;">
-            {@stats.total_albergues} Albergues activos
-          </p>
-        </div>
+          <div style="background: #ffffff; border: 1px solid #ddd; padding: 1rem; border-radius: 8px; text-align: center; border-top: 4px solid #28a745;">
+            <h4 style="margin: 0 0 0.5rem 0; color: #333;">Albergues</h4>
+            <p style="font-size: 2rem; margin: 0; color: #28a745; font-weight: bold;">
+              {Float.round(@stats.porcentaje_ocupacion, 1)}%
+            </p>
+            <p style="margin: 0; font-size: 0.8rem; color: #666;">Ocupación Global</p>
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: #666;">
+              {@stats.total_albergues} Albergues activos
+            </p>
+          </div>
 
-        <div style="background: #ffffff; border: 1px solid #ddd; padding: 1rem; border-radius: 8px; text-align: center; border-top: 4px solid #ffc107;">
-          <h4 style="margin: 0 0 0.5rem 0; color: #333;">Mascotas</h4>
-          <p style="font-size: 2rem; margin: 0; color: #ffc107; font-weight: bold;">
-            {@stats.mascotas_activas}
-          </p>
-          <p style="margin: 0; font-size: 0.8rem; color: #666;">Reportes Activos</p>
-          <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: #17a2b8;">
-            {@stats.mascotas_coincidencias} Posibles Coincidencias
-          </p>
+          <div style="background: #ffffff; border: 1px solid #ddd; padding: 1rem; border-radius: 8px; text-align: center; border-top: 4px solid #ffc107;">
+            <h4 style="margin: 0 0 0.5rem 0; color: #333;">Mascotas</h4>
+            <p style="font-size: 2rem; margin: 0; color: #ffc107; font-weight: bold;">
+              {@stats.mascotas_activas}
+            </p>
+            <p style="margin: 0; font-size: 0.8rem; color: #666;">Reportes Activos</p>
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: #17a2b8;">
+              {@stats.mascotas_coincidencias} Posibles Coincidencias
+            </p>
+          </div>
         </div>
-      </div>
+      <% end %>
 
       <h3 style="color: #333; margin-bottom: 1rem;">Acceso a Módulos</h3>
 
@@ -149,7 +151,7 @@ defmodule EmergenciaWeb.DashboardLive do
           </a>
         <% end %>
 
-        <!-- Recursos: Coordinadores, administradores y voluntarios -->
+        <!-- Recursos: Solo coordinadores, administradores y voluntarios (los ciudadanos no ven inventario) -->
         <%= if @tipo in ["coordinador", "administrador", "voluntario"] do %>
           <a href="/recursos" class="dashboard-card">
             <h3>Inventario de Recursos</h3>
@@ -157,23 +159,19 @@ defmodule EmergenciaWeb.DashboardLive do
           </a>
         <% end %>
 
-        <!-- Necesidades: Coordinadores, administradores y voluntarios -->
-        <%= if @tipo in ["coordinador", "administrador", "voluntario"] do %>
-          <a href="/necesidades" class="dashboard-card">
-            <h3>Gestión de Necesidades</h3>
-            <p>Administra solicitudes de ayuda y asígnalas a recursos disponibles.</p>
-          </a>
-        <% end %>
+        <!-- Necesidades: TODOS pueden verlo -->
+        <a href="/necesidades" class="dashboard-card">
+          <h3>Gestión de Necesidades</h3>
+          <p>Administra solicitudes de ayuda y asígnalas a recursos disponibles.</p>
+        </a>
 
-        <!-- Albergues: Coordinadores, administradores y voluntarios -->
-        <%= if @tipo in ["coordinador", "administrador", "voluntario"] do %>
-          <a href="/albergues" class="dashboard-card">
-            <h3>Gestión de Albergues</h3>
-            <p>Controla cupos, capacidad máxima y personas alojadas.</p>
-          </a>
-        <% end %>
+        <!-- Albergues: TODOS pueden verlo -->
+        <a href="/albergues" class="dashboard-card">
+          <h3>Gestión de Albergues</h3>
+          <p>Controla cupos, capacidad máxima y personas alojadas.</p>
+        </a>
 
-        <!-- Personas y Mensajes: TODOS pueden verlo (ciudadanos también) -->
+        <!-- Personas y Mensajes: TODOS pueden verlo -->
         <a href="/personas" class="dashboard-card">
           <h3>Personas y Mensajes</h3>
           <p>Busca damnificados y permite la comunicación entre familiares.</p>

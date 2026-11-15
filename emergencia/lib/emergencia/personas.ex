@@ -8,7 +8,9 @@ defmodule Emergencia.Personas do
 
   # API Personas
   def registrar_persona(%Persona{} = p), do: GenServer.call(__MODULE__, {:registrar_persona, p})
+
   def buscar_persona(documento), do: GenServer.call(__MODULE__, {:buscar_persona, documento})
+
   def listar_personas, do: GenServer.call(__MODULE__, :listar_personas)
 
   def cambiar_estado(documento, nuevo_estado),
@@ -16,6 +18,7 @@ defmodule Emergencia.Personas do
 
   # API Mensajes
   def enviar_mensaje(%Mensaje{} = m), do: GenServer.call(__MODULE__, {:enviar_mensaje, m})
+
   def listar_mensajes(documento), do: GenServer.call(__MODULE__, {:listar_mensajes, documento})
 
   def marcar_mensaje_leido(id) do
@@ -78,7 +81,6 @@ defmodule Emergencia.Personas do
 
       persona ->
         if Persona.estado_valido?(nuevo_estado) do
-          # Agregamos el cambio al historial
           nuevo_historial = [
             %{estado: nuevo_estado, fecha: DateTime.utc_now() |> DateTime.to_string()}
             | persona.historial_estados
@@ -92,6 +94,17 @@ defmodule Emergencia.Personas do
 
           nuevas_personas = Map.put(state.personas, documento, persona_actualizada)
           Emergencia.Persistencia.guardar_personas(nuevas_personas)
+
+          # <-- NUEVO: Si se reunifica, lo sacamos del albergue
+          if nuevo_estado == "reunificada" do
+            # Buscamos en qué albergue está y lo sacamos
+            Enum.each(Emergencia.Albergues.listar(), fn albergue ->
+              if documento in albergue.personas do
+                Emergencia.Albergues.egresar_persona(albergue.codigo, documento)
+              end
+            end)
+          end
+
           {:reply, {:ok, persona_actualizada}, %{state | personas: nuevas_personas}}
         else
           {:reply, {:error, :estado_invalido}, state}

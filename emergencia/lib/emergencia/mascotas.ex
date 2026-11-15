@@ -6,8 +6,10 @@ defmodule Emergencia.Mascotas do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
-  def registrar(%Mascota{} = m), do: GenServer.call(__MODULE__, {:registrar, m})
+  def registrar(%Mascota{} = mascota), do: GenServer.call(__MODULE__, {:registrar, mascota})
+
   def listar, do: GenServer.call(__MODULE__, :listar)
+
   def buscar(id), do: GenServer.call(__MODULE__, {:buscar, id})
 
   def buscar_coincidencias(id) do
@@ -70,12 +72,28 @@ defmodule Emergencia.Mascotas do
           |> Enum.filter(fn {_m, puntaje} -> puntaje >= 50 end)
           |> Enum.sort_by(fn {_m, puntaje} -> puntaje end, :desc)
 
-        # Si hay coincidencias y la mascota estaba activa, la pasamos a "posible_coincidencia"
-        if length(coincidencias) > 0 and mascota.estado == "activa" do
-          mascota_actualizada = %{mascota | estado: "posible_coincidencia"}
-          nuevas_mascotas = Map.put(mascotas, id, mascota_actualizada)
-          Emergencia.Persistencia.guardar_mascotas(nuevas_mascotas)
-          {:reply, {:ok, coincidencias}, nuevas_mascotas}
+        # Si hay coincidencias, actualizamos el estado de AMBAS mascotas
+        if length(coincidencias) > 0 do
+          # Actualizamos la mascota consultada
+          mascotas_actualizadas =
+            if mascota.estado == "activa" do
+              Map.put(mascotas, id, %{mascota | estado: "posible_coincidencia"})
+            else
+              mascotas
+            end
+
+          # Actualizamos cada mascota que coincidió
+          mascotas_actualizadas =
+            Enum.reduce(coincidencias, mascotas_actualizadas, fn {m_coincidente, _puntaje}, acc ->
+              if m_coincidente.estado == "activa" do
+                Map.put(acc, m_coincidente.id, %{m_coincidente | estado: "posible_coincidencia"})
+              else
+                acc
+              end
+            end)
+
+          Emergencia.Persistencia.guardar_mascotas(mascotas_actualizadas)
+          {:reply, {:ok, coincidencias}, mascotas_actualizadas}
         else
           {:reply, {:ok, coincidencias}, mascotas}
         end

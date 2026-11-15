@@ -11,16 +11,17 @@ defmodule EmergenciaWeb.NecesidadesLive do
 
   @impl true
   def mount(_params, session, socket) do
-    tipo = session["tipo"] || "ciudadano"
     username = session["username"] || "desconocido"
 
-    if tipo in ["coordinador", "administrador", "voluntario"] do
+    if username != "desconocido" do
       {:ok,
        socket
        |> assign(:necesidades, Necesidades.listar_ordenadas())
        |> assign(:zonas, Zonas.listar())
        |> assign(:recursos, Recursos.listar())
+       # <-- NUEVO
        |> assign(:personas, Personas.listar_personas())
+       # <-- NUEVO
        |> assign(:albergues, Albergues.listar())
        |> assign(:necesidad_expandida, nil)
        |> assign(:necesidad_editando, nil)
@@ -31,7 +32,7 @@ defmodule EmergenciaWeb.NecesidadesLive do
        |> assign(:filtro_prioridad, "")
        |> assign(:error, nil)}
     else
-      {:ok, push_navigate(socket, to: "/dashboard")}
+      {:ok, push_navigate(socket, to: "/login")}
     end
   end
 
@@ -54,12 +55,13 @@ defmodule EmergenciaWeb.NecesidadesLive do
             cantidad_requerida: cantidad,
             zona: params["zona"],
             prioridad: prioridad,
-            descripcion: String.trim(params["descripcion"])
+            descripcion: String.trim(params["descripcion"]),
+            # <-- AGREGADO
+            asociado_a: params["asociado_a"]
         }
 
         case Necesidades.actualizar(necesidad_actualizada) do
           {:ok, _} ->
-            # <-- REGISTRO DE ACTIVIDAD
             Usuarios.registrar_actividad(
               socket.assigns.username,
               "Actualizó la necesidad #{necesidad_vieja.id}"
@@ -91,7 +93,6 @@ defmodule EmergenciaWeb.NecesidadesLive do
 
         case Necesidades.registrar(necesidad) do
           {:ok, _} ->
-            # <-- REGISTRO DE ACTIVIDAD
             Usuarios.registrar_actividad(socket.assigns.username, "Registró la necesidad #{id}")
 
             {:noreply,
@@ -118,7 +119,6 @@ defmodule EmergenciaWeb.NecesidadesLive do
       {cantidad, ""} when cantidad > 0 ->
         case Necesidades.asignar_recurso(id, codigo, cantidad) do
           {:ok, _} ->
-            # <-- REGISTRO DE ACTIVIDAD
             Usuarios.registrar_actividad(
               socket.assigns.username,
               "Asignó recurso #{codigo} a la necesidad #{id}"
@@ -187,7 +187,6 @@ defmodule EmergenciaWeb.NecesidadesLive do
   def handle_event("avanzar_estado", %{"id" => id, "estado" => nuevo_estado}, socket) do
     case Necesidades.cambiar_estado(id, nuevo_estado) do
       {:ok, _} ->
-        # <-- REGISTRO DE ACTIVIDAD
         Usuarios.registrar_actividad(
           socket.assigns.username,
           "Cambió estado de necesidad #{id} a #{nuevo_estado}"
@@ -206,7 +205,6 @@ defmodule EmergenciaWeb.NecesidadesLive do
   def handle_event("cancelar", %{"id" => id}, socket) do
     case Necesidades.cambiar_estado(id, "cancelada") do
       {:ok, _} ->
-        # <-- REGISTRO DE ACTIVIDAD
         Usuarios.registrar_actividad(socket.assigns.username, "Canceló la necesidad #{id}")
 
         {:noreply,
@@ -516,7 +514,13 @@ defmodule EmergenciaWeb.NecesidadesLive do
                         )}
                       </p>
                       <p><strong>Descripción:</strong> {n.descripcion}</p>
-                      <p><strong>Reportado por:</strong> {n.responsable}</p>
+                      <p>
+                        <strong>Reportado por:</strong>
+                        {case Enum.find(Usuarios.listar(), &(&1.username == n.responsable)) do
+                          nil -> n.responsable
+                          usuario -> "#{n.responsable} (#{usuario.tipo})"
+                        end}
+                      </p>
                       <p :if={n.asociado_a}><strong>Asociada a:</strong> {n.asociado_a}</p>
                       <p><strong>Fecha:</strong> {n.fecha_creacion}</p>
                     </div>

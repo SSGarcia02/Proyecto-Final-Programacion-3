@@ -149,8 +149,12 @@ defmodule Emergencia.Necesidades do
         {:reply, {:error, :no_encontrada}, necesidades}
 
       necesidad ->
-        # Validar que el estado sea válido
         if Necesidad.estado_valido?(nuevo_estado) do
+          # Si se está cancelando y tiene un recurso asignado, lo devolvemos
+          if nuevo_estado == "cancelada" and necesidad.recurso_asignado != nil do
+            devolver_recurso(necesidad.recurso_asignado)
+          end
+
           nec_actualizada = %{necesidad | estado: nuevo_estado}
           nuevas_necesidades = Map.put(necesidades, id, nec_actualizada)
           Emergencia.Persistencia.guardar_necesidades(nuevas_necesidades)
@@ -158,6 +162,28 @@ defmodule Emergencia.Necesidades do
         else
           {:reply, {:error, :estado_invalido}, necesidades}
         end
+    end
+  end
+
+  # Función auxiliar para extraer la cantidad del string y sumarla al inventario
+  defp devolver_recurso(recurso_asignado) do
+    # Separamos el string por el paréntesis: "R001 (30)" -> ["R001 ", "30)"]
+    case String.split(recurso_asignado, "(") do
+      [codigo_con_espacio, cantidad_con_parentesis] ->
+        codigo_recurso = String.trim(codigo_con_espacio)
+        cantidad_str = String.replace(cantidad_con_parentesis, ")", "")
+
+        case Integer.parse(cantidad_str) do
+          {cantidad, _} ->
+            # Llamamos al GenServer de Recursos para sumar la cantidad
+            Emergencia.Recursos.ingresar(codigo_recurso, cantidad)
+
+          :error ->
+            :ok
+        end
+
+      _ ->
+        :ok
     end
   end
 end

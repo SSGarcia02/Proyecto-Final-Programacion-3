@@ -6,27 +6,43 @@ defmodule EmergenciaWeb.AlberguesLive do
   alias Emergencia.Zonas
   alias Emergencia.Recursos
   alias Emergencia.Necesidades
-  # <-- NUEVO ALIAS
+  alias Emergencia.Personas
   alias Emergencia.Usuarios
 
   @impl true
   def mount(_params, session, socket) do
-    tipo = session["tipo"] || "ciudadano"
     username = session["username"] || "desconocido"
 
-    if tipo in ["coordinador", "administrador", "voluntario"] do
+    if username != "desconocido" do
       {:ok,
        socket
        |> assign(:albergues, Albergues.listar())
        |> assign(:zonas, Zonas.listar())
        |> assign(:recursos, Recursos.listar())
        |> assign(:necesidades, Necesidades.listar_ordenadas())
+       |> assign(:personas, Personas.listar_personas())
+       |> assign(:busqueda_persona, "")
        |> assign(:albergue_expandido, nil)
        |> assign(:username, username)
        |> assign(:error, nil)}
     else
-      {:ok, push_navigate(socket, to: "/dashboard")}
+      {:ok, push_navigate(socket, to: "/login")}
     end
+  end
+
+  @impl true
+  def handle_event("buscar_persona", %{"busqueda" => termino}, socket) do
+    personas_filtradas =
+      Personas.listar_personas()
+      |> Enum.filter(fn p ->
+        String.contains?(String.downcase(p.documento), String.downcase(termino)) or
+          String.contains?(String.downcase(p.nombre), String.downcase(termino))
+      end)
+
+    {:noreply,
+     socket
+     |> assign(:personas, personas_filtradas)
+     |> assign(:busqueda_persona, termino)}
   end
 
   @impl true
@@ -45,7 +61,6 @@ defmodule EmergenciaWeb.AlberguesLive do
 
         case Albergues.registrar(albergue) do
           {:ok, _} ->
-            # <-- REGISTRO DE ACTIVIDAD
             Usuarios.registrar_actividad(
               socket.assigns.username,
               "Registró el albergue #{codigo}"
@@ -68,7 +83,6 @@ defmodule EmergenciaWeb.AlberguesLive do
   def handle_event("eliminar", %{"codigo" => codigo}, socket) do
     case Albergues.eliminar(codigo) do
       :ok ->
-        # <-- REGISTRO DE ACTIVIDAD
         Usuarios.registrar_actividad(socket.assigns.username, "Eliminó el albergue #{codigo}")
         {:noreply, assign(socket, albergues: Albergues.listar(), error: nil)}
 
@@ -95,7 +109,6 @@ defmodule EmergenciaWeb.AlberguesLive do
 
     case Albergues.ingresar_persona(codigo, documento) do
       {:ok, _} ->
-        # <-- REGISTRO DE ACTIVIDAD
         Usuarios.registrar_actividad(
           socket.assigns.username,
           "Registró ingreso de #{documento} al albergue #{codigo}"
@@ -104,6 +117,9 @@ defmodule EmergenciaWeb.AlberguesLive do
         {:noreply,
          socket
          |> assign(:albergues, Albergues.listar())
+         |> assign(:personas, Personas.listar_personas())
+         # <-- Limpia el buscador
+         |> assign(:busqueda_persona, "")
          |> assign(:error, nil)}
 
       {:error, :sin_cupo} ->
@@ -111,6 +127,14 @@ defmodule EmergenciaWeb.AlberguesLive do
 
       {:error, :ya_esta_en_albergue} ->
         {:noreply, assign(socket, :error, "Esa persona ya está registrada en este albergue.")}
+
+      {:error, :persona_no_registrada} ->
+        {:noreply,
+         assign(
+           socket,
+           :error,
+           "Esa persona no existe en el sistema. Regístrala en Personas primero."
+         )}
 
       _ ->
         {:noreply, assign(socket, :error, "Error al ingresar.")}
@@ -122,7 +146,6 @@ defmodule EmergenciaWeb.AlberguesLive do
 
     case Albergues.egresar_persona(codigo, documento) do
       {:ok, _} ->
-        # <-- REGISTRO DE ACTIVIDAD
         Usuarios.registrar_actividad(
           socket.assigns.username,
           "Registró salida de #{documento} del albergue #{codigo}"
@@ -131,6 +154,9 @@ defmodule EmergenciaWeb.AlberguesLive do
         {:noreply,
          socket
          |> assign(:albergues, Albergues.listar())
+         |> assign(:personas, Personas.listar_personas())
+         # <-- Limpia el buscador
+         |> assign(:busqueda_persona, "")
          |> assign(:error, nil)}
 
       {:error, :no_esta_en_albergue} ->
@@ -144,7 +170,6 @@ defmodule EmergenciaWeb.AlberguesLive do
   def handle_event("asociar_recurso", %{"codigo" => codigo, "recurso" => rec_codigo}, socket) do
     case Albergues.asociar_recurso(codigo, rec_codigo) do
       {:ok, _} ->
-        # <-- REGISTRO DE ACTIVIDAD
         Usuarios.registrar_actividad(
           socket.assigns.username,
           "Asoció recurso #{rec_codigo} al albergue #{codigo}"
@@ -163,7 +188,6 @@ defmodule EmergenciaWeb.AlberguesLive do
   def handle_event("asociar_necesidad", %{"codigo" => codigo, "necesidad" => id_nec}, socket) do
     case Albergues.asociar_necesidad(codigo, id_nec) do
       {:ok, _} ->
-        # <-- REGISTRO DE ACTIVIDAD
         Usuarios.registrar_actividad(
           socket.assigns.username,
           "Asoció necesidad #{id_nec} al albergue #{codigo}"
@@ -313,21 +337,40 @@ defmodule EmergenciaWeb.AlberguesLive do
                       <h4 style="margin-top: 0; color: #555;">Gestión de Personas</h4>
 
                       <div style="display: flex; gap: 2rem; margin-bottom: 1rem;">
+                        <!-- FORMULARIO DE INGRESO CON BUSCADOR Y SELECTOR -->
                         <form
                           phx-submit="ingresar"
-                          style="display: flex; gap: 0.5rem; align-items: center;"
+                          style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;"
                         >
                           <input type="hidden" name="codigo" value={a.codigo} />
+
+                          <!-- BUSCADOR -->
                           <input
                             type="text"
-                            name="documento"
-                            placeholder="Documento"
-                            required
-                            style="padding: 0.2rem;"
+                            name="busqueda"
+                            placeholder="Buscar por doc/nombre..."
+                            value={@busqueda_persona}
+                            phx-change="buscar_persona"
+                            phx-debounce="300"
+                            style="padding: 0.2rem; width: 150px;"
                           />
+
+                          <!-- SELECTOR FILTRADO -->
+                          <select name="documento" required style="width: auto; padding: 0.2rem;">
+                            <option value="">Seleccione una persona</option>
+                            <%= for p <- @personas do %>
+                              <%= if p.documento not in a.personas do %>
+                                <option value={p.documento}>
+                                  {p.nombre} ({p.documento}) - {p.estado}
+                                </option>
+                              <% end %>
+                            <% end %>
+                          </select>
+
                           <button type="submit" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">Registrar Ingreso</button>
                         </form>
 
+                        <!-- FORMULARIO DE EGRESO -->
                         <form
                           phx-submit="egresar"
                           style="display: flex; gap: 0.5rem; align-items: center;"
@@ -363,7 +406,16 @@ defmodule EmergenciaWeb.AlberguesLive do
                       <% else %>
                         <ul style="margin: 0; padding-left: 1.5rem;">
                           <%= for doc <- a.personas do %>
-                            <li>{doc}</li>
+                            <!-- Buscamos a la persona por su documento para obtener el nombre y edad -->
+                            <%= case Enum.find(@personas, &(&1.documento == doc)) do %>
+                              <% nil -> %>
+                                <li>{doc} (Datos no encontrados)</li>
+                              <% persona -> %>
+                                <li>
+                                  <strong>{persona.nombre}</strong>
+                                  (Doc: {doc}) - Edad: {persona.edad || "N/A"}
+                                </li>
+                            <% end %>
                           <% end %>
                         </ul>
                       <% end %>

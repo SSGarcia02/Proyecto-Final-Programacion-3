@@ -11,7 +11,11 @@ defmodule Emergencia.MixProject do
       aliases: aliases(),
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
-      listeners: [Phoenix.CodeReloader]
+      listeners: [Phoenix.CodeReloader],
+      docs: [
+      main: "Emergencia", # La página principal será el módulo Emergencia
+      extras: ["README.md"] # Opcional: incluye tu README
+    ]
     ]
   end
 
@@ -69,7 +73,8 @@ defmodule Emergencia.MixProject do
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      {:ex_doc, "~> 0.31", only: :dev, runtime: false}
     ]
   end
 
