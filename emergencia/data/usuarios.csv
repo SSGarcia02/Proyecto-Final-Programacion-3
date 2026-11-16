@@ -1,6 +1,7 @@
 username,password,nombre_completo,tipo,zona,conectado
 Admin,1234,Admin,ciudadano,sin_zona,true
 Laura,1234,Laura,ciudadano,sin_zona,false
+User123,1234,User123,ciudadano,sin_zona,false
 admin,1234,admin,ciudadano,sin_zona,false
 carlos,abcd,carlos,ciudadano,norte,false
 ciudadano1,1234,ciudadano1,ciudadano,sin_zona,false
