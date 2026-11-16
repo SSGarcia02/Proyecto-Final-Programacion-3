@@ -186,7 +186,7 @@ defmodule EmergenciaWeb.ZonasLive do
     personas_en_zona + personas_en_albergues
   end
 
-   @impl true
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="zonas-container">

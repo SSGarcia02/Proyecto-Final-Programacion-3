@@ -178,7 +178,8 @@ defmodule Emergencia.Necesidades do
               # 2. Intentamos egresar el recurso del inventario
               case Emergencia.Recursos.egresar(codigo_recurso, cantidad) do
                 {:ok, _recurso_actualizado} ->
-                  # 3. Si se descuenta bien, pasa a estado "asignada" (no a atendida)
+                  # 3. Si se descuenta bien, actualizamos manteniendo el ID original
+                  # AQUÍ ESTÁ LA CORRECCIÓN: Usamos %{necesidad | ...}
                   nec_actualizada = %{
                     necesidad
                     | estado: "asignada",
@@ -191,7 +192,6 @@ defmodule Emergencia.Necesidades do
                   {:reply, {:ok, nec_actualizada}, nuevas_necesidades}
 
                 {:error, motivo} ->
-                  # Si no hay suficientes recursos, no cambiamos nada
                   {:reply, {:error, motivo}, necesidades}
               end
             else

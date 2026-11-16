@@ -263,6 +263,7 @@ defmodule EmergenciaWeb.NecesidadesLive do
         (prioridad == "" or Atom.to_string(n.prioridad) == prioridad)
     end)
   end
+
   @impl true
   def render(assigns) do
     ~H"""

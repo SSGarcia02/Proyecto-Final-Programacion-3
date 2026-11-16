@@ -1,5 +1,13 @@
 id|tipo|cantidad_requerida|zona|prioridad|descripcion|responsable|asociado_a|estado|recurso_asignado|fecha_creacion
 N1027|agua|30|Z001|critica|30 Botellas de agua|laura||cancelada|R007 (30)|2026-11-15 16:58:50.706000Z
+N1411|agua|25|Z001|critica|25 botellas de agua|sebastianGarcia||cancelada|R001 (25)|2026-11-15 23:27:48.241000Z
+N22146|agua|30|Z001|critica|30 Botellas de agua|laura||cancelada|R020 (30)|2026-11-15 23:13:33.479000Z
+N22594|agua|25|Z001|critica|25 botelas de agua|sebastianGarcia||cancelada||2026-11-15 23:14:16.788000Z
 N23426|agua|25|Z001|critica|25 Botellas de agua|voluntario1||cancelada|R007 (20)|2026-11-15 19:00:07.212000Z
 N27586|agua|30|Z001|critica|30 Botellas de agua|laura||cancelada|R007 (30)|2026-11-15 19:02:28.314000Z
 N27650|agua|25|Z001|critica|25 botellas de agua|voluntario1||cancelada||2026-11-15 19:02:40.660000Z
+N3587|agua|30|Z001|critica|30 botellas de agua|laura||atendida|R001 (30)|2026-11-15 23:07:07.776000Z
+N4354|agua|30|Z001|critica|30 Botellas de agua|laura||atendida|R009 (30)|2026-11-15 23:40:04.443000Z
+N6722|agua|30|Z001|critica|30 Botellas de agua|laura||cancelada|R007 (30)|2026-11-15 23:24:43.409000Z
+N6787|agua|25|Z001|critica|25 botellas de agua|sebastianGarcia||atendida|R001 (25)|2026-11-15 23:09:01.930000Z
+N9026|agua|25|Z001|critica|25 Botellas de agua|sebastianGarcia||pendiente||2026-11-15 23:43:24.185000Z

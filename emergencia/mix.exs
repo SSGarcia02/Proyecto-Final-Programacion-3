@@ -13,9 +13,11 @@ defmodule Emergencia.MixProject do
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
       docs: [
-      main: "Emergencia", # La página principal será el módulo Emergencia
-      extras: ["README.md"] # Opcional: incluye tu README
-    ]
+        # La página principal será el módulo Emergencia
+        main: "Emergencia",
+        # Opcional: incluye tu README
+        extras: ["README.md"]
+      ]
     ]
   end
 

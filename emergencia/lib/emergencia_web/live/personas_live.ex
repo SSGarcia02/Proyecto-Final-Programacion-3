@@ -329,9 +329,11 @@ defmodule EmergenciaWeb.PersonasLive do
                         <h4 style="margin-top: 0; color: #555;">Historial de Estados</h4>
                         <ul style="padding-left: 1.5rem; font-size: 0.9rem;">
                           <%= for h <- p.historial_estados do %>
+                            <% estado = h[:estado] || h["estado"] %>
+                            <% fecha = h[:fecha] || h["fecha"] %>
                             <li>
-                              <strong>{String.capitalize(String.replace(h["estado"], "_", " "))}</strong>
-                              - {h["fecha"]}
+                              <strong>{String.capitalize(String.replace(to_string(estado), "_", " "))}</strong>
+                              - {fecha}
                             </li>
                           <% end %>
                         </ul>

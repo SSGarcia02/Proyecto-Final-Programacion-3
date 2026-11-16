@@ -402,7 +402,9 @@ defmodule EmergenciaWeb.AlberguesLive do
                             <option value="">Seleccione una persona</option>
                             <%= for p <- @personas do %>
                               <%= if p.documento not in a.personas do %>
-                                <option value={p.documento}>{p.nombre} ({p.documento}) - {p.estado}</option>
+                                <option value={p.documento}>
+                                  {p.nombre} ({p.documento}) - {p.estado}
+                                </option>
                               <% end %>
                             <% end %>
                           </select>
@@ -451,7 +453,10 @@ defmodule EmergenciaWeb.AlberguesLive do
                               <% nil -> %>
                                 <li>{doc} (Datos no encontrados)</li>
                               <% persona -> %>
-                                <li><strong>{persona.nombre}</strong> (Doc: {doc}) - Edad: {persona.edad || "N/A"}</li>
+                                <li>
+                                  <strong>{persona.nombre}</strong>
+                                  (Doc: {doc}) - Edad: {persona.edad || "N/A"}
+                                </li>
                             <% end %>
                           <% end %>
                         </ul>
